@@ -10,7 +10,7 @@ export interface WizardSection {
   id: string
   label: string
   description: string
-  profileKey: string | null
+  profileKey: string
   completionCheck: (profile: Record<string, unknown>) => boolean
 }
 
@@ -84,13 +84,6 @@ export const WIZARD_SECTIONS: WizardSection[] = [
       const l = profile.languages as unknown[]
       return Array.isArray(l) && l.length > 0
     }
-  },
-  {
-    id: 'import',
-    label: 'Import documents',
-    description: 'Add CVs, LinkedIn exports, or certificates to enrich your profile',
-    profileKey: null,
-    completionCheck: () => false
   }
 ]
 

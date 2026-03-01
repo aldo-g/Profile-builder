@@ -1,18 +1,26 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const SYSTEM_PROMPT = `You are a career data extraction specialist. You will be given raw text from a CV/résumé and/or a LinkedIn profile URL, and you must extract as much structured professional data as possible.
+const SYSTEM_PROMPT = `You are a career data extraction specialist. You will be given raw text in any format and must extract structured professional data from it.
+
+Input formats you may encounter:
+- CV or résumé (plain text or PDF-extracted text)
+- LinkedIn profile export
+- A bio or personal summary
+- Free-form career notes
+- Code files such as TypeScript/JavaScript arrays or objects describing portfolio projects (e.g. a \`projects\` array with title, description, technologies, githubUrl fields) — treat these as portfolio data
+- Any other text that describes a person's professional background
 
 Extract everything you can find:
 - Full name, email, phone, location, website, LinkedIn URL
 - Every work experience entry: company, title, dates, location, description, achievements, technologies used
 - Every education entry: institution, degree, field, dates, grade/GPA if present
 - All certifications: name, issuer, date, credential ID if present
-- Technical skills, tools, domains, programming languages
-- Portfolio projects: name, description, technologies, links, outcomes
+- Technical skills, tools, domains, programming languages — infer these from project technology lists if no explicit skills section exists
+- Portfolio projects: map title→name, description→description, technologies→technologies, githubUrl→url
 - Languages spoken and proficiency levels
 - Soft skills and competencies mentioned
 
-Be exhaustive. Do not summarise or paraphrase — preserve specific details, dates, company names, numbers, and metrics exactly as written.
+Be exhaustive. Do not summarise or paraphrase — preserve specific details, dates, company names, numbers, and metrics exactly as written. Even if the input is code or unstructured, do your best to map it to the schema.
 
 Call the extract_profile tool with everything you find. If a field is not present, omit it rather than guessing.`
 

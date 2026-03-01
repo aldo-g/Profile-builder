@@ -26,7 +26,7 @@ ipcMain.handle('profile:reset', () => {
 })
 
 // Import handler: parse CV PDF and/or LinkedIn ZIP, extract profile data via Claude
-ipcMain.handle('import:baseline', async (_event, payload: { cvPath?: string; linkedinZipPath?: string }) => {
+ipcMain.handle('import:baseline', async (_event, payload: { cvPath?: string; linkedinZipPath?: string; rawText?: string }) => {
   console.log('[import:baseline] payload:', payload)
   let cvText: string | undefined
   let linkedinText: string | undefined
@@ -45,15 +45,62 @@ ipcMain.handle('import:baseline', async (_event, payload: { cvPath?: string; lin
     console.log('[import:baseline] LinkedIn text length:', linkedinText?.length)
   }
 
+  if (payload.rawText) {
+    cvText = (cvText ? cvText + '\n\n' : '') + payload.rawText
+    console.log('[import:baseline] raw text appended, cvText length:', cvText?.length)
+  }
+
   console.log('[import:baseline] calling runImporter, cvText?', !!cvText, 'linkedinText?', !!linkedinText)
   const extracted = await runImporter({ cvText, linkedinText })
   console.log('[import:baseline] extracted keys:', Object.keys(extracted))
 
   const currentProfile = readProfile() as Record<string, unknown>
-  const merged = { ...currentProfile, ...extracted }
+
+  // Deep merge: append top-level arrays, deep-merge objects, scalar fields only overwrite if current is empty
+  const merged: Record<string, unknown> = { ...currentProfile }
+  for (const [key, value] of Object.entries(extracted)) {
+    if (value === null || value === undefined) continue
+
+    if (Array.isArray(value)) {
+      // Append to existing arrays (workExperience, education, certifications, portfolio, languages, softSkills)
+      merged[key] = Array.isArray(currentProfile[key])
+        ? [...(currentProfile[key] as unknown[]), ...value]
+        : value
+    } else if (typeof value === 'object') {
+      // Merge nested objects (personal, skills, summary) — only fill in missing fields
+      const current = (currentProfile[key] ?? {}) as Record<string, unknown>
+      const incoming = value as Record<string, unknown>
+      const mergedObj: Record<string, unknown> = { ...current }
+      for (const [subKey, subVal] of Object.entries(incoming)) {
+        if (subVal === null || subVal === undefined) continue
+        if (Array.isArray(subVal)) {
+          // e.g. skills.technical — append
+          mergedObj[subKey] = Array.isArray(current[subKey])
+            ? [...(current[subKey] as unknown[]), ...(subVal as unknown[])]
+            : subVal
+        } else if (!current[subKey]) {
+          // Only fill in scalar sub-fields if not already set
+          mergedObj[subKey] = subVal
+        }
+      }
+      merged[key] = mergedObj
+    } else if (!currentProfile[key]) {
+      // Only overwrite scalar top-level fields if empty
+      merged[key] = value
+    }
+  }
+
   writeProfile(merged)
 
-  return merged
+  // Return merged profile plus a summary of what was extracted for the UI
+  const extractedKeys = Object.keys(extracted).filter(k => {
+    const v = extracted[k]
+    if (Array.isArray(v)) return v.length > 0
+    if (typeof v === 'object' && v !== null) return Object.keys(v as object).length > 0
+    return Boolean(v)
+  })
+
+  return { ...merged, _importedSections: extractedKeys }
 })
 
 ipcMain.handle('questions:generate', async (_event, payload: { section: string; profile: object }) => {

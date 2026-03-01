@@ -8,7 +8,7 @@ const api = {
     reset: () => ipcRenderer.invoke('profile:reset')
   },
   imports: {
-    baseline: (payload: { cvPath?: string; linkedinZipPath?: string }) =>
+    baseline: (payload: { cvPath?: string; linkedinZipPath?: string; rawText?: string }) =>
       ipcRenderer.invoke('import:baseline', payload),
     linkedInOAuth: () => ipcRenderer.invoke('linkedin:oauth')
   },

@@ -68,13 +68,13 @@ export default function App(): React.JSX.Element {
         <div className="px-3 py-4 border-t border-gray-800 space-y-1">
           <button
             onClick={() => setPage('import')}
-            className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors flex items-center gap-2 ${
+            className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
               page === 'import'
-                ? 'bg-gray-800 text-gray-200'
-                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                ? 'bg-blue-600/20 text-blue-300 border border-blue-700/40'
+                : 'text-gray-300 hover:text-white hover:bg-gray-800 border border-transparent'
             }`}
           >
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
             Import documents
