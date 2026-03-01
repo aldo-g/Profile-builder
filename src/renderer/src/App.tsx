@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useStore } from './store'
 import InterviewPage from './pages/InterviewPage'
 import IntroPage from './pages/IntroPage'
+import ImportPage from './pages/ImportPage'
 
-type Page = 'intro' | 'interview' | 'job-match' | 'generate'
+type Page = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
 
 export default function App(): React.JSX.Element {
   const [page, setPage] = useState<Page>('intro')
@@ -64,7 +65,20 @@ export default function App(): React.JSX.Element {
           <NavItem label="Job Match" active={page === 'job-match'} onClick={() => setPage('job-match')} />
           <NavItem label="Generate Docs" active={page === 'generate'} onClick={() => setPage('generate')} />
         </nav>
-        <div className="px-3 py-4 border-t border-gray-800">
+        <div className="px-3 py-4 border-t border-gray-800 space-y-1">
+          <button
+            onClick={() => setPage('import')}
+            className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors flex items-center gap-2 ${
+              page === 'import'
+                ? 'bg-gray-800 text-gray-200'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Import documents
+          </button>
           <button
             onClick={() => setPage('intro')}
             className="w-full text-left px-3 py-2 rounded-md text-xs text-gray-600 hover:text-gray-400 hover:bg-gray-800 transition-colors"
@@ -79,6 +93,7 @@ export default function App(): React.JSX.Element {
         {page === 'interview' && <InterviewPage />}
         {page === 'job-match' && <PlaceholderPage title="Job Match" description="Paste a job listing here to get a gap analysis." />}
         {page === 'generate' && <PlaceholderPage title="Generate Docs" description="Generate a tailored CV and cover letter." />}
+        {page === 'import' && <ImportPage />}
       </main>
 
       {/* Settings modal */}

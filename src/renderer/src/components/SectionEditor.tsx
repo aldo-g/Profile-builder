@@ -30,11 +30,11 @@ function DeleteButton({ onClick }: { onClick: (e: React.MouseEvent) => void }): 
   return (
     <button
       onClick={onClick}
-      className="ml-auto flex-shrink-0 text-gray-600 hover:text-red-400 transition-colors p-1 rounded"
+      className="ml-auto flex-shrink-0 text-red-500 hover:text-red-400 transition-colors p-1 rounded"
       title="Remove"
     >
       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
       </svg>
     </button>
   )
@@ -116,12 +116,13 @@ function formToJob(form: typeof EMPTY_JOB): Record<string, unknown> {
   }
 }
 
-function JobForm({ form, setForm, onSave, onCancel, saveLabel = 'Add' }: {
+function JobForm({ form, setForm, onSave, onCancel, saveLabel = 'Add', onRemove }: {
   form: typeof EMPTY_JOB
   setForm: React.Dispatch<React.SetStateAction<typeof EMPTY_JOB>>
   onSave: () => void
   onCancel: () => void
   saveLabel?: string
+  onRemove?: () => void
 }): React.JSX.Element {
   return (
     <div className="space-y-3">
@@ -158,7 +159,7 @@ function JobForm({ form, setForm, onSave, onCancel, saveLabel = 'Add' }: {
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none font-mono text-xs"
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button
           onClick={onSave}
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
@@ -166,6 +167,9 @@ function JobForm({ form, setForm, onSave, onCancel, saveLabel = 'Add' }: {
           {saveLabel}
         </button>
         <button onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+        {onRemove && (
+          <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
+        )}
       </div>
     </div>
   )
@@ -197,7 +201,7 @@ function JobRow({ job, onRemove, onSave }: {
   if (editing) {
     return (
       <div className="py-3 border-b border-gray-800 last:border-0">
-        <JobForm form={form} setForm={setForm} onSave={saveEdit} onCancel={() => setEditing(false)} saveLabel="Save" />
+        <JobForm form={form} setForm={setForm} onSave={saveEdit} onCancel={() => setEditing(false)} saveLabel="Save" onRemove={onRemove} />
       </div>
     )
   }
@@ -227,7 +231,6 @@ function JobRow({ job, onRemove, onSave }: {
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
-          <DeleteButton onClick={(e: React.MouseEvent) => { e.stopPropagation(); onRemove() }} />
         </div>
       </div>
 
@@ -334,9 +337,10 @@ function EduRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; o
           <label className="block text-[11px] text-gray-500 mb-1">Additional notes</label>
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Thesis topic, notable modules, activities…" rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button onClick={saveEdit} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors">Save</button>
           <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+          <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
         </div>
       </div>
     )
@@ -353,7 +357,6 @@ function EduRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; o
         <button onClick={startEdit} className="text-gray-600 hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
-        <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
       </div>
     </div>
   )
@@ -437,9 +440,10 @@ function CertRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; 
           <Input label="Credential ID" value={form.credentialId} onChange={v => setForm(f => ({ ...f, credentialId: v }))} placeholder="ABC-123" />
           <Input label="Verification URL" value={form.url} onChange={v => setForm(f => ({ ...f, url: v }))} placeholder="https://..." />
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button onClick={saveEdit} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors">Save</button>
           <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+          <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
         </div>
       </div>
     )
@@ -456,7 +460,6 @@ function CertRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; 
         <button onClick={startEdit} className="text-gray-600 hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
-        <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
       </div>
     </div>
   )
@@ -597,7 +600,7 @@ function projectToForm(p: any) {
   return { name: p.name ?? '', description: p.description ?? '', url: p.url ?? '', technologies: Array.isArray(p.technologies) ? p.technologies.join(', ') : (p.technologies ?? '') }
 }
 
-function ProjectForm({ form, setForm, onSave, onCancel, saveLabel = 'Add' }: { form: typeof EMPTY_PROJECT; setForm: React.Dispatch<React.SetStateAction<typeof EMPTY_PROJECT>>; onSave: () => void; onCancel: () => void; saveLabel?: string }): React.JSX.Element {
+function ProjectForm({ form, setForm, onSave, onCancel, saveLabel = 'Add', onRemove }: { form: typeof EMPTY_PROJECT; setForm: React.Dispatch<React.SetStateAction<typeof EMPTY_PROJECT>>; onSave: () => void; onCancel: () => void; saveLabel?: string; onRemove?: () => void }): React.JSX.Element {
   return (
     <div className="space-y-2">
       <Input label="Project name *" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="My Project" />
@@ -609,9 +612,10 @@ function ProjectForm({ form, setForm, onSave, onCancel, saveLabel = 'Add' }: { f
         <Input label="URL" value={form.url} onChange={v => setForm(f => ({ ...f, url: v }))} placeholder="https://..." />
         <Input label="Technologies (comma-separated)" value={form.technologies} onChange={v => setForm(f => ({ ...f, technologies: v }))} placeholder="React, TypeScript" />
       </div>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button onClick={onSave} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors">{saveLabel}</button>
         <button onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+        {onRemove && <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />}
       </div>
     </div>
   )
@@ -632,7 +636,7 @@ function ProjectRow({ item, onRemove, onSave }: { item: any; onRemove: () => voi
   if (editing) {
     return (
       <div className="py-3 border-b border-gray-800 last:border-0">
-        <ProjectForm form={form} setForm={setForm} onSave={saveEdit} onCancel={() => setEditing(false)} saveLabel="Save" />
+        <ProjectForm form={form} setForm={setForm} onSave={saveEdit} onCancel={() => setEditing(false)} saveLabel="Save" onRemove={onRemove} />
       </div>
     )
   }
@@ -654,7 +658,6 @@ function ProjectRow({ item, onRemove, onSave }: { item: any; onRemove: () => voi
         <button onClick={startEdit} className="text-gray-600 hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
-        <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
       </div>
     </div>
   )
