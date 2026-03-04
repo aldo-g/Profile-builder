@@ -1,10 +1,13 @@
-import { ipcMain, app } from 'electron'
+import { ipcMain, app, dialog } from 'electron'
 import { join } from 'path'
-import { readFileSync, existsSync, unlinkSync } from 'fs'
+import { readFileSync, existsSync, unlinkSync, writeFileSync } from 'fs'
 import { createRequire } from 'module'
 import { readProfile, writeProfile } from './profile'
 import { runInterviewer, generateSectionQuestions } from '../../agents/interviewer'
 import { runImporter } from '../../agents/importer'
+import { deduplicateProfile, cleanProfile } from '../../agents/deduplicator'
+import { runGapAnalyser, runGapAnalyserChat } from '../../agents/gap-analyser'
+import type { GapAnalysis } from '../../schema/profile.schema'
 import { parseLinkedInZip, linkedInDataToText } from '../linkedin-parser'
 import { linkedInOAuth } from '../linkedin-oauth'
 
@@ -23,6 +26,25 @@ ipcMain.handle('profile:reset', () => {
     unlinkSync(profilePath)
   }
   return readProfile()
+})
+
+ipcMain.handle('profile:dedupe', async () => {
+  const current = readProfile() as Record<string, unknown>
+  const cleaned = await cleanProfile(current)
+  writeProfile(cleaned)
+  return cleaned
+})
+
+ipcMain.handle('profile:export', async () => {
+  const profile = readProfile()
+  const { filePath, canceled } = await dialog.showSaveDialog({
+    title: 'Export Profile',
+    defaultPath: 'profile.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }]
+  })
+  if (canceled || !filePath) return { success: false }
+  writeFileSync(filePath, JSON.stringify(profile, null, 2), 'utf-8')
+  return { success: true, filePath }
 })
 
 // Import handler: parse CV PDF and/or LinkedIn ZIP, extract profile data via Claude
@@ -55,40 +77,7 @@ ipcMain.handle('import:baseline', async (_event, payload: { cvPath?: string; lin
   console.log('[import:baseline] extracted keys:', Object.keys(extracted))
 
   const currentProfile = readProfile() as Record<string, unknown>
-
-  // Deep merge: append top-level arrays, deep-merge objects, scalar fields only overwrite if current is empty
-  const merged: Record<string, unknown> = { ...currentProfile }
-  for (const [key, value] of Object.entries(extracted)) {
-    if (value === null || value === undefined) continue
-
-    if (Array.isArray(value)) {
-      // Append to existing arrays (workExperience, education, certifications, portfolio, languages, softSkills)
-      merged[key] = Array.isArray(currentProfile[key])
-        ? [...(currentProfile[key] as unknown[]), ...value]
-        : value
-    } else if (typeof value === 'object') {
-      // Merge nested objects (personal, skills, summary) — only fill in missing fields
-      const current = (currentProfile[key] ?? {}) as Record<string, unknown>
-      const incoming = value as Record<string, unknown>
-      const mergedObj: Record<string, unknown> = { ...current }
-      for (const [subKey, subVal] of Object.entries(incoming)) {
-        if (subVal === null || subVal === undefined) continue
-        if (Array.isArray(subVal)) {
-          // e.g. skills.technical — append
-          mergedObj[subKey] = Array.isArray(current[subKey])
-            ? [...(current[subKey] as unknown[]), ...(subVal as unknown[])]
-            : subVal
-        } else if (!current[subKey]) {
-          // Only fill in scalar sub-fields if not already set
-          mergedObj[subKey] = subVal
-        }
-      }
-      merged[key] = mergedObj
-    } else if (!currentProfile[key]) {
-      // Only overwrite scalar top-level fields if empty
-      merged[key] = value
-    }
-  }
+  const merged = await deduplicateProfile(currentProfile, extracted)
 
   writeProfile(merged)
 
@@ -105,6 +94,49 @@ ipcMain.handle('import:baseline', async (_event, payload: { cvPath?: string; lin
 
 ipcMain.handle('questions:generate', async (_event, payload: { section: string; profile: object }) => {
   return generateSectionQuestions(payload.profile, payload.section)
+})
+
+ipcMain.handle('job:analyse', async (_event, payload: { jobText: string; profile: Record<string, unknown> }) => {
+  return runGapAnalyser(payload)
+})
+
+ipcMain.handle('job:chat', async (event, payload: {
+  message: string
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+  jobText: string
+  analysis: GapAnalysis
+  profile: Record<string, unknown>
+}) => {
+  const { message, conversationHistory, jobText, analysis, profile } = payload
+
+  try {
+    const agentResponse = await runGapAnalyserChat({
+      userMessage: message,
+      conversationHistory,
+      jobText,
+      analysis,
+      profile,
+      onChunk: (chunk: string) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('job:stream', chunk)
+        }
+      }
+    })
+
+    if (event.sender.isDestroyed()) return
+
+    if (agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0) {
+      const updatedProfile = { ...profile, ...agentResponse.profileUpdates }
+      writeProfile(updatedProfile)
+      event.sender.send('job:done', { agentResponse, updatedProfile })
+    } else {
+      event.sender.send('job:done', { agentResponse, updatedProfile: profile })
+    }
+  } catch (err: unknown) {
+    if (event.sender.isDestroyed()) return
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+    event.sender.send('job:error', { error: errorMessage })
+  }
 })
 
 ipcMain.handle('chat:send', async (event, payload) => {

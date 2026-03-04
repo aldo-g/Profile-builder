@@ -5,7 +5,9 @@ const api = {
   profile: {
     read: () => ipcRenderer.invoke('profile:read'),
     write: (data: object) => ipcRenderer.invoke('profile:write', data),
-    reset: () => ipcRenderer.invoke('profile:reset')
+    reset: () => ipcRenderer.invoke('profile:reset'),
+    export: () => ipcRenderer.invoke('profile:export'),
+    dedupe: () => ipcRenderer.invoke('profile:dedupe')
   },
   imports: {
     baseline: (payload: { cvPath?: string; linkedinZipPath?: string; rawText?: string }) =>
@@ -40,6 +42,36 @@ const api = {
       const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload as { error: string })
       ipcRenderer.on('chat:error', listener)
       return () => ipcRenderer.removeListener('chat:error', listener)
+    }
+  },
+  job: {
+    analyse: (payload: { jobText: string; profile: object }) =>
+      ipcRenderer.invoke('job:analyse', payload),
+
+    chat: (payload: {
+      message: string
+      conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+      jobText: string
+      analysis: object
+      profile: object
+    }) => ipcRenderer.invoke('job:chat', payload),
+
+    onStream: (callback: (chunk: string) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, chunk: string) => callback(chunk)
+      ipcRenderer.on('job:stream', listener)
+      return () => ipcRenderer.removeListener('job:stream', listener)
+    },
+
+    onDone: (callback: (payload: { agentResponse: unknown; updatedProfile: unknown }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload as { agentResponse: unknown; updatedProfile: unknown })
+      ipcRenderer.on('job:done', listener)
+      return () => ipcRenderer.removeListener('job:done', listener)
+    },
+
+    onError: (callback: (payload: { error: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload as { error: string })
+      ipcRenderer.on('job:error', listener)
+      return () => ipcRenderer.removeListener('job:error', listener)
     }
   }
 }

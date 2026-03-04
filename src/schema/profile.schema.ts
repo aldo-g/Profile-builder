@@ -48,3 +48,16 @@ export interface ChatDonePayload {
 export interface ChatErrorPayload {
   error: string
 }
+
+export interface GapAnalysis {
+  missingSkills: string[]
+  highlightExperience: string[]
+  gaps: string[]
+  score: number
+  recommendedTweaks: string[]
+}
+
+export interface JobAnalyseResult {
+  analysis: GapAnalysis
+  openingMessage: string
+}

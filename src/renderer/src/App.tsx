@@ -3,6 +3,7 @@ import { useStore } from './store'
 import InterviewPage from './pages/InterviewPage'
 import IntroPage from './pages/IntroPage'
 import ImportPage from './pages/ImportPage'
+import JobMatchPage from './pages/JobMatchPage'
 
 type Page = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
 
@@ -10,6 +11,10 @@ export default function App(): React.JSX.Element {
   const [page, setPage] = useState<Page>('intro')
   const [showSettings, setShowSettings] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [deduping, setDeduping] = useState(false)
+  const [dedupeMessage, setDedupeMessage] = useState('')
+  const [dedupeError, setDedupeError] = useState('')
   const setProfile = useStore((s) => s.setProfile)
 
   // Load profile from disk on app start; skip intro if profile already exists
@@ -24,6 +29,29 @@ export default function App(): React.JSX.Element {
       }
     })
   }, [setProfile])
+
+  async function handleDedupe(): Promise<void> {
+    setDeduping(true)
+    setDedupeError('')
+    setDedupeMessage('')
+    try {
+      const api = (window as any).api
+      const cleaned = await api.profile.dedupe()
+      setProfile(cleaned)
+      setDedupeMessage('Profile cleaned successfully.')
+    } catch (err: unknown) {
+      setDedupeError(err instanceof Error ? err.message : 'Deduplication failed. Please try again.')
+    } finally {
+      setDeduping(false)
+    }
+  }
+
+  async function handleExport(): Promise<void> {
+    setExporting(true)
+    const api = (window as any).api
+    await api.profile.export()
+    setExporting(false)
+  }
 
   async function handleReset(): Promise<void> {
     setResetting(true)
@@ -50,7 +78,11 @@ export default function App(): React.JSX.Element {
             <p className="text-xs text-gray-500 mt-0.5">Powered by Claude</p>
           </div>
           <button
-            onClick={() => setShowSettings(true)}
+            onClick={() => {
+              setDedupeError('')
+              setDedupeMessage('')
+              setShowSettings(true)
+            }}
             title="Settings"
             className="mt-0.5 text-gray-600 hover:text-gray-300 transition-colors"
           >
@@ -91,7 +123,7 @@ export default function App(): React.JSX.Element {
       {/* Main content */}
       <main className="flex-1 overflow-hidden">
         {page === 'interview' && <InterviewPage />}
-        {page === 'job-match' && <PlaceholderPage title="Job Match" description="Paste a job listing here to get a gap analysis." />}
+        {page === 'job-match' && <JobMatchPage />}
         {page === 'generate' && <PlaceholderPage title="Generate Docs" description="Generate a tailored CV and cover letter." />}
         {page === 'import' && <ImportPage />}
       </main>
@@ -102,6 +134,33 @@ export default function App(): React.JSX.Element {
           <div className="bg-gray-900 border border-gray-700 rounded-xl w-80 p-6 shadow-2xl">
             <h2 className="text-sm font-semibold text-white mb-1">Settings</h2>
             <p className="text-xs text-gray-500 mb-6">Manage your profile data</p>
+
+            <div className="border border-gray-700 rounded-lg p-4 mb-4">
+              <p className="text-xs font-medium text-gray-300 mb-1">Export profile</p>
+              <p className="text-xs text-gray-500 mb-3">Save your profile as a JSON file to your computer.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDedupe}
+                  disabled={deduping}
+                  className="flex-1 px-3 py-2 rounded-md text-xs font-medium bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white transition-colors"
+                >
+                  {deduping ? 'Cleaning…' : 'Deduplicate'}
+                </button>
+                <button
+                  onClick={handleExport}
+                  disabled={exporting}
+                  className="flex-1 px-3 py-2 rounded-md text-xs font-medium bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white transition-colors"
+                >
+                  {exporting ? 'Saving…' : 'Export JSON'}
+                </button>
+              </div>
+              {dedupeMessage && (
+                <p className="mt-3 text-xs text-green-400">{dedupeMessage}</p>
+              )}
+              {dedupeError && (
+                <p className="mt-3 text-xs text-red-400">{dedupeError}</p>
+              )}
+            </div>
 
             <div className="border border-red-900/50 rounded-lg p-4 mb-6">
               <p className="text-xs font-medium text-red-400 mb-1">Reset profile</p>

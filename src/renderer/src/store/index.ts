@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { GapAnalysis } from '../../../schema/profile.schema'
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -120,6 +121,24 @@ interface AppStore {
 
   initialisedSections: Record<string, true>
   markSectionInitialised: (sectionId: string) => void
+
+  // Job Match state
+  jobText: string
+  setJobText: (text: string) => void
+  jobAnalysis: GapAnalysis | null
+  setJobAnalysis: (analysis: GapAnalysis | null) => void
+  jobOpeningMessage: string
+  setJobOpeningMessage: (message: string) => void
+  jobMessages: ChatMessage[]
+  addJobMessage: (message: ChatMessage) => void
+  clearJobMessages: () => void
+  jobStreaming: boolean
+  setJobStreaming: (streaming: boolean) => void
+  jobStreamContent: string
+  appendJobStreamChunk: (chunk: string) => void
+  clearJobStreamContent: () => void
+  jobAnalysing: boolean
+  setJobAnalysing: (analysing: boolean) => void
 }
 
 export const useStore = create<AppStore>((set) => ({
@@ -176,4 +195,22 @@ export const useStore = create<AppStore>((set) => ({
     set((state) => ({
       initialisedSections: { ...state.initialisedSections, [sectionId]: true }
     })),
+
+  // Job Match state
+  jobText: '',
+  setJobText: (jobText) => set({ jobText }),
+  jobAnalysis: null,
+  setJobAnalysis: (jobAnalysis) => set({ jobAnalysis }),
+  jobOpeningMessage: '',
+  setJobOpeningMessage: (jobOpeningMessage) => set({ jobOpeningMessage }),
+  jobMessages: [],
+  addJobMessage: (message) => set((state) => ({ jobMessages: [...state.jobMessages, message] })),
+  clearJobMessages: () => set({ jobMessages: [] }),
+  jobStreaming: false,
+  setJobStreaming: (jobStreaming) => set({ jobStreaming }),
+  jobStreamContent: '',
+  appendJobStreamChunk: (chunk) => set((state) => ({ jobStreamContent: state.jobStreamContent + chunk })),
+  clearJobStreamContent: () => set({ jobStreamContent: '' }),
+  jobAnalysing: false,
+  setJobAnalysing: (jobAnalysing) => set({ jobAnalysing }),
 }))
