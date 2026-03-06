@@ -1,5 +1,21 @@
 import { create } from 'zustand'
-import type { GapAnalysis } from '../../../schema/profile.schema'
+import type { GapAnalysis, GeneratedDocs } from '../../../schema/profile.schema'
+
+export type AppPage = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
+
+export interface JobSession {
+  id: string
+  name: string          // editable display name
+  jobText: string
+  analysis: GapAnalysis | null
+  analysing: boolean
+  cardIndex: number
+  answered: number[]    // card indices answered
+  skipped: number[]     // card indices skipped
+  createdAt: number
+  generatedDocs: GeneratedDocs | null
+  generating: boolean
+}
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -123,22 +139,16 @@ interface AppStore {
   markSectionInitialised: (sectionId: string) => void
 
   // Job Match state
-  jobText: string
-  setJobText: (text: string) => void
-  jobAnalysis: GapAnalysis | null
-  setJobAnalysis: (analysis: GapAnalysis | null) => void
-  jobOpeningMessage: string
-  setJobOpeningMessage: (message: string) => void
-  jobMessages: ChatMessage[]
-  addJobMessage: (message: ChatMessage) => void
-  clearJobMessages: () => void
-  jobStreaming: boolean
-  setJobStreaming: (streaming: boolean) => void
-  jobStreamContent: string
-  appendJobStreamChunk: (chunk: string) => void
-  clearJobStreamContent: () => void
-  jobAnalysing: boolean
-  setJobAnalysing: (analysing: boolean) => void
+  jobSessions: JobSession[]
+  activeJobId: string | null
+  createJobSession: () => string             // returns new id
+  deleteJobSession: (id: string) => void
+  setActiveJobId: (id: string | null) => void
+  updateJobSession: (id: string, patch: Partial<JobSession>) => void
+
+  // Page navigation (allows any page to navigate without prop drilling)
+  page: AppPage
+  setPage: (page: AppPage) => void
 }
 
 export const useStore = create<AppStore>((set) => ({
@@ -197,20 +207,39 @@ export const useStore = create<AppStore>((set) => ({
     })),
 
   // Job Match state
-  jobText: '',
-  setJobText: (jobText) => set({ jobText }),
-  jobAnalysis: null,
-  setJobAnalysis: (jobAnalysis) => set({ jobAnalysis }),
-  jobOpeningMessage: '',
-  setJobOpeningMessage: (jobOpeningMessage) => set({ jobOpeningMessage }),
-  jobMessages: [],
-  addJobMessage: (message) => set((state) => ({ jobMessages: [...state.jobMessages, message] })),
-  clearJobMessages: () => set({ jobMessages: [] }),
-  jobStreaming: false,
-  setJobStreaming: (jobStreaming) => set({ jobStreaming }),
-  jobStreamContent: '',
-  appendJobStreamChunk: (chunk) => set((state) => ({ jobStreamContent: state.jobStreamContent + chunk })),
-  clearJobStreamContent: () => set({ jobStreamContent: '' }),
-  jobAnalysing: false,
-  setJobAnalysing: (jobAnalysing) => set({ jobAnalysing }),
+  jobSessions: [],
+  activeJobId: null,
+  createJobSession: () => {
+    const id = `job-${Date.now()}`
+    const session: JobSession = {
+      id,
+      name: 'New job',
+      jobText: '',
+      analysis: null,
+      analysing: false,
+      cardIndex: 0,
+      answered: [],
+      skipped: [],
+      createdAt: Date.now(),
+      generatedDocs: null,
+      generating: false
+    }
+    set((state) => ({ jobSessions: [...state.jobSessions, session], activeJobId: id }))
+    return id
+  },
+  deleteJobSession: (id) =>
+    set((state) => ({
+      jobSessions: state.jobSessions.filter(j => j.id !== id),
+      activeJobId: state.activeJobId === id
+        ? (state.jobSessions.find(j => j.id !== id)?.id ?? null)
+        : state.activeJobId
+    })),
+  setActiveJobId: (activeJobId) => set({ activeJobId }),
+  updateJobSession: (id, patch) =>
+    set((state) => ({
+      jobSessions: state.jobSessions.map(j => j.id === id ? { ...j, ...patch } : j)
+    })),
+
+  page: 'intro',
+  setPage: (page) => set({ page }),
 }))

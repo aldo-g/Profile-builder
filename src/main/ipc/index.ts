@@ -1,17 +1,46 @@
-import { ipcMain, app, dialog } from 'electron'
-import { join } from 'path'
-import { readFileSync, existsSync, unlinkSync, writeFileSync } from 'fs'
+import { ipcMain, app, dialog, BrowserWindow } from 'electron'
+import { join, extname } from 'path'
+import { readFileSync, existsSync, unlinkSync, writeFileSync, copyFileSync } from 'fs'
 import { createRequire } from 'module'
 import { readProfile, writeProfile } from './profile'
 import { runInterviewer, generateSectionQuestions } from '../../agents/interviewer'
 import { runImporter } from '../../agents/importer'
 import { deduplicateProfile, cleanProfile } from '../../agents/deduplicator'
 import { runGapAnalyser, runGapAnalyserChat } from '../../agents/gap-analyser'
+import { runGenerator } from '../../agents/generator'
 import type { GapAnalysis } from '../../schema/profile.schema'
 import { parseLinkedInZip, linkedInDataToText } from '../linkedin-parser'
 import { linkedInOAuth } from '../linkedin-oauth'
 
 const require = createRequire(import.meta.url)
+
+// Deep merge profileUpdates into the current saved profile.
+// Arrays are replaced at the top level (the agent returns the full updated array),
+// objects are merged recursively, scalars are overwritten.
+function deepMergeProfile(
+  base: Record<string, unknown>,
+  updates: Record<string, unknown>
+): Record<string, unknown> {
+  const result = { ...base }
+  for (const [key, value] of Object.entries(updates)) {
+    if (
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      typeof base[key] === 'object' &&
+      base[key] !== null &&
+      !Array.isArray(base[key])
+    ) {
+      result[key] = deepMergeProfile(
+        base[key] as Record<string, unknown>,
+        value as Record<string, unknown>
+      )
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
 
 // LinkedIn OAuth — opens system browser, spins up local callback server, returns userinfo
 ipcMain.handle('linkedin:oauth', async () => {
@@ -126,7 +155,8 @@ ipcMain.handle('job:chat', async (event, payload: {
     if (event.sender.isDestroyed()) return
 
     if (agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0) {
-      const updatedProfile = { ...profile, ...agentResponse.profileUpdates }
+      const currentProfile = readProfile() as Record<string, unknown>
+      const updatedProfile = deepMergeProfile(currentProfile, agentResponse.profileUpdates)
       writeProfile(updatedProfile)
       event.sender.send('job:done', { agentResponse, updatedProfile })
     } else {
@@ -157,9 +187,9 @@ ipcMain.handle('chat:send', async (event, payload) => {
 
     if (event.sender.isDestroyed()) return
 
-    // Merge profileUpdates into current profile and save if there are updates
     if (agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0) {
-      const updatedProfile = { ...profile, ...agentResponse.profileUpdates }
+      const currentProfile = readProfile() as Record<string, unknown>
+      const updatedProfile = deepMergeProfile(currentProfile, agentResponse.profileUpdates)
       writeProfile(updatedProfile)
       event.sender.send('chat:done', { agentResponse, updatedProfile })
     } else {
@@ -170,4 +200,226 @@ ipcMain.handle('chat:send', async (event, payload) => {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
     event.sender.send('chat:error', { error: errorMessage })
   }
+})
+
+// ── Template management ──────────────────────────────────────────────────────
+
+ipcMain.handle('template:save', async (_event, payload: { filePath: string; type: 'cv' | 'coverLetter' }) => {
+  const ext = extname(payload.filePath).toLowerCase()
+  const baseName = payload.type === 'cv' ? 'cv-template' : 'cover-letter-template'
+  const destPath = join(app.getPath('userData'), `${baseName}${ext}`)
+  copyFileSync(payload.filePath, destPath)
+  return { success: true, destPath }
+})
+
+ipcMain.handle('template:check', async () => {
+  const userData = app.getPath('userData')
+  const exts = ['.docx', '.pdf', '.doc']
+  const has = (base: string): boolean =>
+    exts.some(e => existsSync(join(userData, `${base}${e}`)))
+  return {
+    cv: has('cv-template'),
+    coverLetter: has('cover-letter-template')
+  }
+})
+
+ipcMain.handle('template:read', async (_event, payload: { type: 'cv' | 'coverLetter' }) => {
+  const userData = app.getPath('userData')
+  const baseName = payload.type === 'cv' ? 'cv-template' : 'cover-letter-template'
+  const exts = ['.docx', '.doc', '.pdf']
+  let foundPath: string | null = null
+  let foundExt = ''
+  for (const e of exts) {
+    const p = join(userData, `${baseName}${e}`)
+    if (existsSync(p)) { foundPath = p; foundExt = e; break }
+  }
+  if (!foundPath) throw new Error(`Template not found: ${baseName}`)
+
+  if (foundExt === '.docx' || foundExt === '.doc') {
+    const mammoth = require('mammoth') as {
+      extractRawText: (opts: { path: string }) => Promise<{ value: string }>
+    }
+    const result = await mammoth.extractRawText({ path: foundPath })
+    return { text: result.value }
+  } else {
+    // PDF
+    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
+    const buffer = readFileSync(foundPath)
+    const parsed = await pdfParse(buffer)
+    return { text: parsed.text }
+  }
+})
+
+// ── Document generation ──────────────────────────────────────────────────────
+
+ipcMain.handle('generate:docs', async (event, payload: {
+  profile: Record<string, unknown>
+  analysis: GapAnalysis
+  cvTemplateText: string
+  coverLetterTemplateText?: string
+}) => {
+  try {
+    const result = await runGenerator({
+      profile: payload.profile,
+      analysis: payload.analysis,
+      cvTemplateText: payload.cvTemplateText,
+      coverLetterTemplateText: payload.coverLetterTemplateText,
+      onChunk: (chunk: string) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('generate:stream', chunk)
+        }
+      }
+    })
+
+    if (event.sender.isDestroyed()) return
+    event.sender.send('generate:done', result)
+  } catch (err: unknown) {
+    if (event.sender.isDestroyed()) return
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+    event.sender.send('generate:error', { error: errorMessage })
+  }
+})
+
+function markdownToHtml(md: string): string {
+  let html = md
+    // Headings
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // Bold / italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // List items (collected into <ul> blocks below)
+    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+    // Horizontal rules
+    .replace(/^---+$/gm, '<hr>')
+    // Paragraphs: wrap consecutive non-tag lines
+    .split('\n')
+    .map(line => {
+      if (line.startsWith('<') || line.trim() === '') return line
+      return `<p>${line}</p>`
+    })
+    .join('\n')
+  // Wrap consecutive <li> in <ul>
+  html = html.replace(/((<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
+  return html
+}
+
+ipcMain.handle('generate:pdf', async (_event, payload: { markdown: string; filename: string }) => {
+  const { filePath, canceled } = await dialog.showSaveDialog({
+    title: 'Save PDF',
+    defaultPath: payload.filename,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  })
+  if (canceled || !filePath) return { success: false }
+
+  const html = markdownToHtml(payload.markdown)
+  const styledHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: -apple-system, Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.5; margin: 0; padding: 40px 48px; color: #111; }
+  h1 { font-size: 20pt; margin: 0 0 4px; }
+  h2 { font-size: 13pt; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 18px 0 8px; }
+  h3 { font-size: 11pt; margin: 12px 0 4px; }
+  p { margin: 4px 0; }
+  ul { padding-left: 18px; margin: 4px 0; }
+  li { margin: 2px 0; }
+  strong { font-weight: 600; }
+  hr { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+</style>
+</head>
+<body>${html}</body>
+</html>`
+
+  const win = new BrowserWindow({ show: false, width: 794, height: 1123, webPreferences: { sandbox: true } })
+  await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(styledHtml)}`)
+
+  const pdfBuffer = await win.webContents.printToPDF({ pageSize: 'A4' })
+  win.destroy()
+
+  writeFileSync(filePath, pdfBuffer)
+  return { success: true, filePath }
+})
+
+// ── DOCX export ───────────────────────────────────────────────────────────────
+
+ipcMain.handle('generate:docx', async (_event, payload: { markdown: string; filename: string }) => {
+  const { filePath, canceled } = await dialog.showSaveDialog({
+    title: 'Save DOCX',
+    defaultPath: payload.filename,
+    filters: [{ name: 'Word Document', extensions: ['docx'] }]
+  })
+  if (canceled || !filePath) return { success: false }
+
+  // Dynamic import so Electron's ESM loader picks up docx's .mjs entry directly
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } = await import('docx')
+
+  function parseInlineRuns(text: string): InstanceType<typeof TextRun>[] {
+    const runs: InstanceType<typeof TextRun>[] = []
+    const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*)/g
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        runs.push(new TextRun({ text: text.slice(lastIndex, match.index) }))
+      }
+      if (match[2]) runs.push(new TextRun({ text: match[2], bold: true, italics: true }))
+      else if (match[3]) runs.push(new TextRun({ text: match[3], bold: true }))
+      else if (match[4]) runs.push(new TextRun({ text: match[4], italics: true }))
+      lastIndex = match.index + match[0].length
+    }
+    if (lastIndex < text.length) runs.push(new TextRun({ text: text.slice(lastIndex) }))
+    return runs.length > 0 ? runs : [new TextRun({ text })]
+  }
+
+  const paragraphs: InstanceType<typeof Paragraph>[] = []
+  for (const line of payload.markdown.split('\n')) {
+    if (/^### (.+)$/.test(line)) {
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: parseInlineRuns(line.slice(4)) }))
+    } else if (/^## (.+)$/.test(line)) {
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: parseInlineRuns(line.slice(3)) }))
+    } else if (/^# (.+)$/.test(line)) {
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: parseInlineRuns(line.slice(2)) }))
+    } else if (/^[-*] (.+)$/.test(line)) {
+      paragraphs.push(new Paragraph({ bullet: { level: 0 }, children: parseInlineRuns(line.replace(/^[-*] /, '')) }))
+    } else if (/^---+$/.test(line.trim())) {
+      paragraphs.push(new Paragraph({
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CCCCCC', space: 1 } },
+        children: []
+      }))
+    } else if (line.trim() === '') {
+      paragraphs.push(new Paragraph({ children: [] }))
+    } else {
+      paragraphs.push(new Paragraph({ children: parseInlineRuns(line) }))
+    }
+  }
+
+  const doc = new Document({
+    styles: {
+      paragraphStyles: [
+        {
+          id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', quickFormat: true,
+          run: { size: 40, bold: true, color: '111111' },
+          paragraph: { spacing: { after: 80 } }
+        },
+        {
+          id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', quickFormat: true,
+          run: { size: 26, bold: true, color: '222222' },
+          paragraph: { spacing: { before: 360, after: 120 } }
+        },
+        {
+          id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', quickFormat: true,
+          run: { size: 22, bold: true, color: '333333' },
+          paragraph: { spacing: { before: 240, after: 80 } }
+        }
+      ]
+    },
+    sections: [{ properties: {}, children: paragraphs }]
+  })
+
+  const buffer = await Packer.toBuffer(doc)
+  writeFileSync(filePath, buffer)
+  return { success: true, filePath }
 })

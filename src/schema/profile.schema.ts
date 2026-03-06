@@ -50,14 +50,25 @@ export interface ChatErrorPayload {
 }
 
 export interface GapAnalysis {
+  jobTitle: string
+  company: string
   missingSkills: string[]
   highlightExperience: string[]
   gaps: string[]
   score: number
   recommendedTweaks: string[]
+  skillQuestions: Record<string, string>
 }
 
 export interface JobAnalyseResult {
   analysis: GapAnalysis
   openingMessage: string
+}
+
+export interface GeneratedDocs {
+  cvMarkdown: string
+  coverLetterMarkdown: string
+  generatedAt: number
+  jobTitle: string
+  company: string
 }

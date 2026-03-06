@@ -28,7 +28,13 @@
       "Bash(pkill -f \"profile-builder\")",
       "Bash(git add .gitignore .env.example AGENTS.md PROFILE_SCHEMA.md README.md electron.vite.config.ts package-lock.json package.json postcss.config.js tailwind.config.js tsconfig.json tsconfig.node.json tsconfig.web.json src/)",
       "Bash(git commit:*)",
-      "Bash(git push -u origin main)"
+      "Bash(git push -u origin main)",
+      "Bash(npm install mammoth)",
+      "Bash(npm install docx @types/docx)",
+      "Bash(npm install docx)",
+      "Bash(node -e \"const d = require\\(''docx''\\); console.log\\(typeof d, Object.keys\\(d\\).slice\\(0,5\\)\\)\")",
+      "Bash(node --input-type=module:*)",
+      "Bash(/Users/alastairgrant/Personal/Code_Projects/profile-builder/node_modules/.bin/electron --trace-uncaught out/main/index.js)"
     ]
   }
 }

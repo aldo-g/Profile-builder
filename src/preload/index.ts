@@ -73,6 +73,49 @@ const api = {
       ipcRenderer.on('job:error', listener)
       return () => ipcRenderer.removeListener('job:error', listener)
     }
+  },
+
+  templates: {
+    save: (payload: { filePath: string; type: 'cv' | 'coverLetter' }) =>
+      ipcRenderer.invoke('template:save', payload),
+    check: (): Promise<{ cv: boolean; coverLetter: boolean }> =>
+      ipcRenderer.invoke('template:check'),
+    read: (payload: { type: 'cv' | 'coverLetter' }): Promise<{ text: string }> =>
+      ipcRenderer.invoke('template:read', payload)
+  },
+
+  generate: {
+    docs: (payload: {
+      profile: object
+      analysis: object
+      cvTemplateText: string
+      coverLetterTemplateText?: string
+    }) => ipcRenderer.invoke('generate:docs', payload),
+
+    pdf: (payload: { markdown: string; filename: string }) =>
+      ipcRenderer.invoke('generate:pdf', payload),
+
+    docx: (payload: { markdown: string; filename: string }) =>
+      ipcRenderer.invoke('generate:docx', payload),
+
+    onStream: (callback: (chunk: string) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, chunk: string) => callback(chunk)
+      ipcRenderer.on('generate:stream', listener)
+      return () => ipcRenderer.removeListener('generate:stream', listener)
+    },
+
+    onDone: (callback: (result: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, result: unknown) => callback(result)
+      ipcRenderer.on('generate:done', listener)
+      return () => ipcRenderer.removeListener('generate:done', listener)
+    },
+
+    onError: (callback: (payload: { error: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) =>
+        callback(payload as { error: string })
+      ipcRenderer.on('generate:error', listener)
+      return () => ipcRenderer.removeListener('generate:error', listener)
+    }
   }
 }
 

@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useStore } from './store'
 import InterviewPage from './pages/InterviewPage'
 import IntroPage from './pages/IntroPage'
 import ImportPage from './pages/ImportPage'
 import JobMatchPage from './pages/JobMatchPage'
-
-type Page = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
+import GeneratePage from './pages/GeneratePage'
 
 export default function App(): React.JSX.Element {
-  const [page, setPage] = useState<Page>('intro')
+  const page = useStore((s) => s.page)
+  const setPage = useStore((s) => s.setPage)
   const [showSettings, setShowSettings] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -16,6 +16,25 @@ export default function App(): React.JSX.Element {
   const [dedupeMessage, setDedupeMessage] = useState('')
   const [dedupeError, setDedupeError] = useState('')
   const setProfile = useStore((s) => s.setProfile)
+
+  // Template state — lives here so sidebar can show it on the Generate page
+  const [templateStatus, setTemplateStatus] = useState<{ cv: boolean; coverLetter: boolean }>({ cv: false, coverLetter: false })
+  const cvInputRef = useRef<HTMLInputElement>(null)
+  const clInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const api = (window as any).api
+    api.templates?.check().then(setTemplateStatus)
+  }, [])
+
+  async function handleTemplateUpload(file: File, type: 'cv' | 'coverLetter'): Promise<void> {
+    const webUtils = (window as any).electron?.webUtils
+    const filePath: string = webUtils?.getPathForFile(file) ?? (file as any).path ?? ''
+    if (!filePath) return
+    const api = (window as any).api
+    await api.templates?.save({ filePath, type })
+    setTemplateStatus(prev => ({ ...prev, [type]: true }))
+  }
 
   // Load profile from disk on app start; skip intro if profile already exists
   useEffect(() => {
@@ -25,10 +44,10 @@ export default function App(): React.JSX.Element {
       const personal = profile.personal as Record<string, unknown> | undefined
       const hasProfile = Boolean(personal?.fullName)
       if (hasProfile) {
-        setPage('interview')
+        setPage('interview' as const)
       }
     })
-  }, [setProfile])
+  }, [setProfile, setPage])
 
   async function handleDedupe(): Promise<void> {
     setDeduping(true)
@@ -60,12 +79,12 @@ export default function App(): React.JSX.Element {
     setProfile(fresh)
     setResetting(false)
     setShowSettings(false)
-    setPage('intro')
+    setPage('intro' as const)
   }
 
   // Show intro page fullscreen (no sidebar)
   if (page === 'intro') {
-    return <IntroPage onContinue={() => setPage('interview')} />
+    return <IntroPage onContinue={() => setPage('interview' as const)} />
   }
 
   return (
@@ -92,14 +111,34 @@ export default function App(): React.JSX.Element {
             </svg>
           </button>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          <NavItem label="Build Profile" active={page === 'interview'} onClick={() => setPage('interview')} />
-          <NavItem label="Job Match" active={page === 'job-match'} onClick={() => setPage('job-match')} />
-          <NavItem label="Generate Docs" active={page === 'generate'} onClick={() => setPage('generate')} />
+        <nav className="px-3 py-4 space-y-1">
+          <NavItem label="Build Profile" active={page === 'interview'} onClick={() => setPage('interview' as const)} />
+          <NavItem label="Job Match" active={page === 'job-match'} onClick={() => setPage('job-match' as const)} />
+          <NavItem label="Generate Docs" active={page === 'generate'} onClick={() => setPage('generate' as const)} />
         </nav>
+
+        {/* Template upload — always visible */}
+        <div className="flex-1 px-3 pb-2 flex flex-col gap-3">
+          <div className="border-t border-gray-800 pt-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">Templates</p>
+            <SidebarTemplateCard
+              label="CV Template"
+              isReady={templateStatus.cv}
+              inputRef={cvInputRef}
+              onUpload={(file) => handleTemplateUpload(file, 'cv')}
+            />
+          </div>
+          <SidebarTemplateCard
+            label="Cover Letter"
+            sublabel="optional"
+            isReady={templateStatus.coverLetter}
+            inputRef={clInputRef}
+            onUpload={(file) => handleTemplateUpload(file, 'coverLetter')}
+          />
+        </div>
         <div className="px-3 py-4 border-t border-gray-800 space-y-1">
           <button
-            onClick={() => setPage('import')}
+            onClick={() => setPage('import' as const)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
               page === 'import'
                 ? 'bg-blue-600/20 text-blue-300 border border-blue-700/40'
@@ -112,7 +151,7 @@ export default function App(): React.JSX.Element {
             Import documents
           </button>
           <button
-            onClick={() => setPage('intro')}
+            onClick={() => setPage('intro' as const)}
             className="w-full text-left px-3 py-2 rounded-md text-xs text-gray-600 hover:text-gray-400 hover:bg-gray-800 transition-colors"
           >
             About this app
@@ -124,7 +163,7 @@ export default function App(): React.JSX.Element {
       <main className="flex-1 overflow-hidden">
         {page === 'interview' && <InterviewPage />}
         {page === 'job-match' && <JobMatchPage />}
-        {page === 'generate' && <PlaceholderPage title="Generate Docs" description="Generate a tailored CV and cover letter." />}
+        {page === 'generate' && <GeneratePage templateStatus={templateStatus} />}
         {page === 'import' && <ImportPage />}
       </main>
 
@@ -202,13 +241,58 @@ function NavItem({ label, active, onClick }: { label: string; active: boolean; o
   )
 }
 
-function PlaceholderPage({ title, description }: { title: string; description: string }): React.JSX.Element {
+function SidebarTemplateCard({ label, sublabel, isReady, inputRef, onUpload }: {
+  label: string
+  sublabel?: string
+  isReady: boolean
+  inputRef: React.RefObject<HTMLInputElement>
+  onUpload: (file: File) => void
+}): React.JSX.Element {
+  function handleDrop(e: React.DragEvent): void {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) onUpload(file)
+  }
+
   return (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold text-white mb-2">{title}</h2>
-        <p className="text-gray-400 text-sm">{description}</p>
+    <div
+      onClick={() => inputRef.current?.click()}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+      className={`rounded-lg border cursor-pointer transition-colors px-3 py-2 ${
+        isReady
+          ? 'border-green-700/50 bg-green-900/10 hover:border-green-600/60'
+          : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/40'
+      }`}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".docx,.doc,.pdf"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) onUpload(f)
+          e.target.value = ''
+        }}
+      />
+      <div className="flex items-center gap-1.5">
+        {isReady ? (
+          <svg className="w-3 h-3 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 8l5-5m0 0l5 5m-5-5v12" />
+          </svg>
+        )}
+        <span className="text-xs text-white">{label}</span>
+        {sublabel && <span className="text-xs text-gray-600">({sublabel})</span>}
       </div>
+      <p className="text-xs text-gray-600 pl-4.5 mt-0.5">
+        {isReady ? 'Ready · click to replace' : 'Drop or click to upload'}
+      </p>
     </div>
   )
 }
+

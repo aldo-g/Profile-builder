@@ -9,10 +9,9 @@ Identify:
 - Experience entries in the profile most relevant to highlight for this application
 - A fit score from 0 (no match) to 100 (perfect match)
 - Concrete additions or edits the candidate should make to strengthen their candidacy
+- For each missing skill, one specific, targeted question to ask the candidate (e.g. "Have you worked with vector databases like Pinecone or Weaviate? If so, in what context?"). Questions must be concrete and reference the candidate's existing experience where possible.
 
 Call the analyse_gap tool exactly once with the structured data.
-
-After calling the tool, write a brief, warm opening message (2–3 sentences) summarising your findings and offering to ask targeted follow-up questions to fill the most important gaps.
 
 Current profile:
 {PROFILE_JSON}
@@ -26,6 +25,14 @@ const ANALYSE_GAP_TOOL: Anthropic.Tool = {
   input_schema: {
     type: 'object' as const,
     properties: {
+      jobTitle: {
+        type: 'string',
+        description: 'The job title extracted from the listing (e.g. "Senior Software Engineer")'
+      },
+      company: {
+        type: 'string',
+        description: 'The company name extracted from the listing. Use empty string if not found.'
+      },
       missingSkills: {
         type: 'array',
         items: { type: 'string' },
@@ -49,9 +56,14 @@ const ANALYSE_GAP_TOOL: Anthropic.Tool = {
         type: 'array',
         items: { type: 'string' },
         description: 'Concrete additions or edits to the profile that would strengthen the application'
+      },
+      skillQuestions: {
+        type: 'object',
+        description: 'A map of missing skill name → one specific question to ask the candidate about their experience with that skill',
+        additionalProperties: { type: 'string' }
       }
     },
-    required: ['missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks']
+    required: ['jobTitle', 'company', 'missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks', 'skillQuestions']
   }
 }
 
@@ -69,7 +81,9 @@ Current profile:
 Rules:
 - Ask targeted follow-up questions to uncover experience or skills the candidate has that would address the identified gaps
 - No more than 2 questions per response
-- If the user provides new information, call update_profile to save it to the profile
+- Only call update_profile if the user gives a concrete, affirmative example (a specific project, role, tool used, outcome, etc.)
+- If the user says "no", "not really", "I haven't", "I don't have experience with that", or gives a vague or negative answer, do NOT call update_profile — pass an empty object
+- Never invent or infer experience that wasn't explicitly described by the user
 - Acknowledge what you already know — never ask for something already in the profile
 - Be specific: "Did you use Kubernetes in your DevOps work at Acme?" not "Tell me about your cloud experience"
 - Always call update_profile exactly once per response (with an empty object if nothing to save)`
@@ -105,7 +119,7 @@ export interface GapAnalyserChatInput {
 
 export async function runGapAnalyser(
   input: GapAnalyserInput
-): Promise<{ analysis: GapAnalysis; openingMessage: string }> {
+): Promise<{ analysis: GapAnalysis }> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set.')
 
@@ -117,7 +131,7 @@ export async function runGapAnalyser(
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: systemPrompt,
     tools: [ANALYSE_GAP_TOOL],
     tool_choice: { type: 'any' },
@@ -125,23 +139,19 @@ export async function runGapAnalyser(
   })
 
   let analysis: GapAnalysis | null = null
-  let openingMessage = ''
 
   for (const block of response.content) {
     if (block.type === 'tool_use' && block.name === 'analyse_gap') {
       analysis = block.input as GapAnalysis
-    }
-    if (block.type === 'text') {
-      openingMessage = block.text.trim()
+      if (!analysis.skillQuestions) analysis.skillQuestions = {}
+      if (!analysis.jobTitle) analysis.jobTitle = 'Untitled role'
+      if (!analysis.company) analysis.company = ''
     }
   }
 
   if (!analysis) throw new Error('Gap analyser did not return structured analysis.')
-  if (!openingMessage) {
-    openingMessage = `I've analysed the job listing. Your fit score is ${analysis.score}/100. I identified ${analysis.missingSkills.length} missing skill${analysis.missingSkills.length !== 1 ? 's' : ''}. Let me ask some targeted questions to help fill the gaps.`
-  }
 
-  return { analysis, openingMessage }
+  return { analysis }
 }
 
 export async function runGapAnalyserChat(input: GapAnalyserChatInput): Promise<AgentResponse> {
