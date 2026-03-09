@@ -7,15 +7,19 @@ You have been given:
 1. The candidate's full profile JSON
 2. A gap analysis comparing their profile to a specific job listing
 3. The text content of their existing CV template — use this to understand their preferred structure, section order, tone, and level of detail
+4. (Optional) The candidate's own answers to gap questions — treat these as additional context to incorporate where relevant, even if not yet in the profile
 
 Your task:
 - Write a tailored CV in markdown that exactly mirrors the structure and section ordering of their template CV
 - Write a matching cover letter in markdown
 - Emphasise the experience listed in highlightExperience and frame skills to address the job's requirements
-- Do NOT invent experience — only use what is in the profile
+- Incorporate relevant detail from the candidate's gap answers where it strengthens the application
+- Do NOT invent experience — only use what is in the profile or explicitly stated in the gap answers
 - Do NOT include sections that are empty in the profile
 - Keep the same tone and level of detail as the template
+- Do NOT use hyphens (- ) as list markers anywhere in the CV or cover letter — use bullet points (•) instead. Hyphens are a strong signal of AI-generated text and must be avoided entirely
 - Use the job title and company from the gap analysis in the cover letter opening
+- Always include full URLs in the contact/header section — portfolio website, LinkedIn, GitHub, etc. Write them out in full (e.g. www.example.com, linkedin.com/in/username) — never shorten or omit them
 
 {COVER_LETTER_SECTION}
 
@@ -26,6 +30,8 @@ Candidate profile:
 
 Gap analysis:
 {ANALYSIS_JSON}
+
+{GAP_ANSWERS_SECTION}
 
 CV template structure (extracted text — mirror this structure):
 {CV_TEMPLATE_TEXT}`
@@ -54,6 +60,7 @@ export interface GeneratorInput {
   analysis: GapAnalysis
   cvTemplateText: string
   coverLetterTemplateText?: string
+  gapAnswers?: Record<string, string>  // skill → answer text
   onChunk: (chunk: string) => void
 }
 
@@ -67,10 +74,15 @@ export async function runGenerator(input: GeneratorInput): Promise<GeneratedDocs
     ? `Cover letter template structure (mirror this format):\n${input.coverLetterTemplateText}`
     : 'No cover letter template provided — use a standard professional format with 3–4 paragraphs.'
 
+  const gapAnswersSection = input.gapAnswers && Object.keys(input.gapAnswers).length > 0
+    ? `Candidate's answers to gap questions:\n${Object.entries(input.gapAnswers).map(([skill, answer]) => `- ${skill}: ${answer}`).join('\n')}`
+    : ''
+
   const systemPrompt = GENERATE_SYSTEM_PROMPT
     .replace('{COVER_LETTER_SECTION}', coverLetterSection)
     .replace('{PROFILE_JSON}', JSON.stringify(input.profile, null, 2))
     .replace('{ANALYSIS_JSON}', JSON.stringify(input.analysis, null, 2))
+    .replace('{GAP_ANSWERS_SECTION}', gapAnswersSection)
     .replace('{CV_TEMPLATE_TEXT}', input.cvTemplateText)
 
   const stream = client.messages.stream({

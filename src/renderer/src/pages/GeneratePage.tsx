@@ -23,7 +23,7 @@ function renderMarkdown(md: string): string {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     // Bullet lists
-    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+    .replace(/^[-*•]\s+(.+)$/gm, '<li>$1</li>')
     // HR
     .replace(/^---+$/gm, '<hr>')
     // Remaining plain lines → <p>
@@ -102,11 +102,20 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
 
     if (activeJob) updateJobSession(activeJob.id, { generating: true })
 
+    // Convert index-keyed answers to skill-keyed for the generator
+    const gapAnswers: Record<string, string> = {}
+    if (activeJob.answers && activeJob.analysis) {
+      activeJob.analysis.missingSkills.forEach((skill, i) => {
+        if (activeJob.answers[i]) gapAnswers[skill] = activeJob.answers[i]
+      })
+    }
+
     await api.generate.docs({
       profile,
       analysis: activeJob.analysis,
       cvTemplateText,
-      coverLetterTemplateText
+      coverLetterTemplateText,
+      gapAnswers: Object.keys(gapAnswers).length > 0 ? gapAnswers : undefined
     })
   }
 
@@ -241,12 +250,14 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
           </div>
 
           {/* Content area */}
-          <div className="flex-1 overflow-y-auto bg-gray-950">
+          <div className="flex-1 overflow-y-auto bg-[#1a1a1a]">
             {viewMode === 'preview' ? (
-              <div
-                className="prose-doc px-8 py-6"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(activeMarkdown) }}
-              />
+              <div className="prose-doc-wrap">
+                <div
+                  className={`prose-doc${activeTab === 'cover-letter' ? ' prose-cover-letter' : ''}`}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(activeMarkdown) }}
+                />
+              </div>
             ) : (
               <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed px-6 py-6">
                 {activeMarkdown}

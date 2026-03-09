@@ -62,8 +62,11 @@ const api = {
       return () => ipcRenderer.removeListener('job:stream', listener)
     },
 
-    onDone: (callback: (payload: { agentResponse: unknown; updatedProfile: unknown }) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload as { agentResponse: unknown; updatedProfile: unknown })
+    confirmUpdate: (updates: Record<string, unknown>) =>
+      ipcRenderer.invoke('job:confirmUpdate', updates),
+
+    onDone: (callback: (payload: { agentResponse: unknown; proposedUpdates: Record<string, unknown> | null }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload as { agentResponse: unknown; proposedUpdates: Record<string, unknown> | null })
       ipcRenderer.on('job:done', listener)
       return () => ipcRenderer.removeListener('job:done', listener)
     },

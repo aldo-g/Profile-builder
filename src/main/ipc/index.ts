@@ -154,19 +154,25 @@ ipcMain.handle('job:chat', async (event, payload: {
 
     if (event.sender.isDestroyed()) return
 
-    if (agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0) {
-      const currentProfile = readProfile() as Record<string, unknown>
-      const updatedProfile = deepMergeProfile(currentProfile, agentResponse.profileUpdates)
-      writeProfile(updatedProfile)
-      event.sender.send('job:done', { agentResponse, updatedProfile })
-    } else {
-      event.sender.send('job:done', { agentResponse, updatedProfile: profile })
-    }
+    // Never auto-write — send proposed updates back to UI for user confirmation
+    event.sender.send('job:done', {
+      agentResponse,
+      proposedUpdates: agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0
+        ? agentResponse.profileUpdates
+        : null
+    })
   } catch (err: unknown) {
     if (event.sender.isDestroyed()) return
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
     event.sender.send('job:error', { error: errorMessage })
   }
+})
+
+ipcMain.handle('job:confirmUpdate', (_event, updates: Record<string, unknown>) => {
+  const currentProfile = readProfile() as Record<string, unknown>
+  const updatedProfile = deepMergeProfile(currentProfile, updates)
+  writeProfile(updatedProfile)
+  return updatedProfile
 })
 
 ipcMain.handle('chat:send', async (event, payload) => {
@@ -257,6 +263,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
   analysis: GapAnalysis
   cvTemplateText: string
   coverLetterTemplateText?: string
+  gapAnswers?: Record<string, string>
 }) => {
   try {
     const result = await runGenerator({
@@ -264,6 +271,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
       analysis: payload.analysis,
       cvTemplateText: payload.cvTemplateText,
       coverLetterTemplateText: payload.coverLetterTemplateText,
+      gapAnswers: payload.gapAnswers,
       onChunk: (chunk: string) => {
         if (!event.sender.isDestroyed()) {
           event.sender.send('generate:stream', chunk)
@@ -319,15 +327,50 @@ ipcMain.handle('generate:pdf', async (_event, payload: { markdown: string; filen
 <head>
 <meta charset="utf-8">
 <style>
-  body { font-family: -apple-system, Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.5; margin: 0; padding: 40px 48px; color: #111; }
-  h1 { font-size: 20pt; margin: 0 0 4px; }
-  h2 { font-size: 13pt; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 18px 0 8px; }
-  h3 { font-size: 11pt; margin: 12px 0 4px; }
-  p { margin: 4px 0; }
-  ul { padding-left: 18px; margin: 4px 0; }
-  li { margin: 2px 0; }
-  strong { font-weight: 600; }
-  hr { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: #111;
+    padding: 44px 52px;
+    background: #fff;
+  }
+  /* Name at the top */
+  h1 {
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    font-size: 22pt;
+    font-weight: 700;
+    color: #111;
+    margin: 0 0 3px;
+    letter-spacing: -0.01em;
+  }
+  /* Section headings */
+  h2 {
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #444;
+    border-bottom: 1.5px solid #222;
+    padding-bottom: 2px;
+    margin: 16px 0 6px;
+  }
+  /* Role / employer */
+  h3 {
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #111;
+    margin: 9px 0 2px;
+  }
+  p  { margin: 2px 0; color: #222; }
+  ul { padding-left: 15px; margin: 3px 0 5px; }
+  li { margin: 1px 0; color: #222; }
+  strong { font-weight: 600; color: #111; }
+  em     { font-style: italic; }
+  hr     { border: none; border-top: 1px solid #ddd; margin: 10px 0; }
 </style>
 </head>
 <body>${html}</body>

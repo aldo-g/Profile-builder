@@ -14,19 +14,95 @@ body {
   overflow: hidden;
 }
 
-/* Markdown document preview */
-.prose-doc {
-  color: #e5e7eb;
-  font-size: 0.875rem;
-  line-height: 1.7;
-  max-width: 72ch;
+/* Document preview — renders like a printed page */
+.prose-doc-wrap {
+  background: #1a1a1a;
+  padding: 24px 32px;
 }
-.prose-doc h1 { font-size: 1.4rem; font-weight: 700; color: #fff; margin: 0 0 0.25rem; }
-.prose-doc h2 { font-size: 1.05rem; font-weight: 600; color: #f3f4f6; border-bottom: 1px solid #374151; padding-bottom: 0.25rem; margin: 1.5rem 0 0.6rem; }
-.prose-doc h3 { font-size: 0.9rem; font-weight: 600; color: #d1d5db; margin: 1rem 0 0.3rem; }
-.prose-doc p { margin: 0.3rem 0; }
-.prose-doc ul { padding-left: 1.25rem; margin: 0.4rem 0; }
-.prose-doc li { margin: 0.15rem 0; }
-.prose-doc strong { font-weight: 600; color: #f9fafb; }
-.prose-doc em { font-style: italic; color: #d1d5db; }
-.prose-doc hr { border: none; border-top: 1px solid #374151; margin: 1rem 0; }
+.prose-doc {
+  background: #fff;
+  color: #111;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: 48px 52px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.45);
+  border-radius: 2px;
+  min-height: 400px;
+}
+
+/* Name / title at top of CV */
+.prose-doc h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 0.15rem;
+  letter-spacing: -0.01em;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Section headings */
+.prose-doc h2 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 1.5px solid #222;
+  padding-bottom: 3px;
+  margin: 1.4rem 0 0.55rem;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Role / employer sub-headings */
+.prose-doc h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111;
+  margin: 0.8rem 0 0.1rem;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.prose-doc p  { margin: 0.25rem 0; color: #222; }
+.prose-doc ul { list-style-type: disc; padding-left: 1.4rem; margin: 0.3rem 0 0.5rem; }
+.prose-doc li { margin: 0.15rem 0; color: #222; display: list-item; }
+.prose-doc strong { font-weight: 600; color: #111; }
+.prose-doc em    { font-style: italic; color: #333; }
+.prose-doc hr    { border: none; border-top: 1px solid #ddd; margin: 0.9rem 0; }
+
+/* Cover letter overrides — looser, letter-style layout */
+.prose-cover-letter {
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+.prose-cover-letter h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0 0 0.1rem;
+  font-family: inherit;
+}
+.prose-cover-letter h2 {
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin: 0 0 1.5rem;
+  color: #555;
+}
+.prose-cover-letter h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  font-family: inherit;
+}
+.prose-cover-letter p {
+  margin: 0 0 1rem;
+  color: #222;
+}
+.prose-cover-letter p:last-child { margin-bottom: 0; }

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { GapAnalysis, GeneratedDocs } from '../../../schema/profile.schema'
 
 export type AppPage = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
@@ -12,6 +13,7 @@ export interface JobSession {
   cardIndex: number
   answered: number[]    // card indices answered
   skipped: number[]     // card indices skipped
+  answers: Record<number, string>  // card index → user's answer text
   createdAt: number
   generatedDocs: GeneratedDocs | null
   generating: boolean
@@ -151,7 +153,7 @@ interface AppStore {
   setPage: (page: AppPage) => void
 }
 
-export const useStore = create<AppStore>((set) => ({
+export const useStore = create<AppStore>()(persist((set) => ({
   profile: {},
   setProfile: (profile) => set({ profile }),
 
@@ -220,6 +222,7 @@ export const useStore = create<AppStore>((set) => ({
       cardIndex: 0,
       answered: [],
       skipped: [],
+      answers: {},
       createdAt: Date.now(),
       generatedDocs: null,
       generating: false
@@ -242,4 +245,20 @@ export const useStore = create<AppStore>((set) => ({
 
   page: 'intro',
   setPage: (page) => set({ page }),
+}), {
+  name: 'profile-builder-store',
+  partialize: (state) => ({
+    jobSessions: state.jobSessions,
+    activeJobId: state.activeJobId,
+  }),
+  onRehydrateStorage: () => (state) => {
+    // Clear any in-progress flags that would be stale after a restart
+    if (state) {
+      state.jobSessions = state.jobSessions.map(j => ({
+        ...j,
+        analysing: false,
+        generating: false,
+      }))
+    }
+  },
 }))
