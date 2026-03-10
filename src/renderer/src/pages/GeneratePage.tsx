@@ -154,23 +154,25 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
     await runResearch(correctedCompany.trim() || company)
   }
 
-  async function handleExportPdf(tab: 'cv' | 'cover-letter'): Promise<void> {
+  function handleEdit(tab: 'cv' | 'cover-letter', markdown: string): void {
     if (!activeJob?.generatedDocs) return
-    const api = (window as any).api
-    const markdown = tab === 'cv'
-      ? activeJob.generatedDocs.cvMarkdown
-      : activeJob.generatedDocs.coverLetterMarkdown
+    const updated = tab === 'cv'
+      ? { ...activeJob.generatedDocs, cvMarkdown: markdown }
+      : { ...activeJob.generatedDocs, coverLetterMarkdown: markdown }
+    updateJobSession(activeJob.id, { generatedDocs: updated })
+  }
+
+  async function handleExportPdf(tab: 'cv' | 'cover-letter', markdown: string): Promise<void> {
+    if (!activeJob?.generatedDocs) return
+const api = (window as any).api
     const company = activeJob.generatedDocs.company || activeJob.analysis?.company || 'application'
     const filename = tab === 'cv' ? `CV - ${company}.pdf` : `Cover Letter - ${company}.pdf`
     await api.generate.pdf({ markdown, filename })
   }
 
-  async function handleExportDocx(tab: 'cv' | 'cover-letter'): Promise<void> {
+  async function handleExportDocx(tab: 'cv' | 'cover-letter', markdown: string): Promise<void> {
     if (!activeJob?.generatedDocs) return
     const api = (window as any).api
-    const markdown = tab === 'cv'
-      ? activeJob.generatedDocs.cvMarkdown
-      : activeJob.generatedDocs.coverLetterMarkdown
     const company = activeJob.generatedDocs.company || activeJob.analysis?.company || 'application'
     const filename = tab === 'cv' ? `CV - ${company}.docx` : `Cover Letter - ${company}.docx`
     await api.generate.docx({ markdown, filename })
@@ -271,6 +273,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
           docs={docs}
           onExportPdf={handleExportPdf}
           onExportDocx={handleExportDocx}
+          onEdit={handleEdit}
         />
       ) : (
         status !== 'researching' && status !== 'generating' && status !== 'confirming' && (
