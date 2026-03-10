@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { GapAnalysis, GeneratedDocs } from '../../../schema/profile.schema'
+import type { GapAnalysis, GeneratedDocs, OverseerResult } from '../../../schema/profile.schema'
 
-export type AppPage = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
+export type AppPage = 'intro' | 'interview' | 'job-match' | 'import'
 
 export interface JobSession {
   id: string
@@ -17,6 +17,8 @@ export interface JobSession {
   createdAt: number
   generatedDocs: GeneratedDocs | null
   generating: boolean
+  companySummary?: string
+  overseerResult?: OverseerResult
 }
 
 export interface ChatMessage {
@@ -87,7 +89,7 @@ export const WIZARD_SECTIONS: WizardSection[] = [
   {
     id: 'portfolio',
     label: 'Portfolio',
-    description: 'Projects, open source, and public work',
+    description: 'Personal side-projects and open-source work (not work projects)',
     profileKey: 'portfolio',
     completionCheck: (profile) => {
       const p = profile.portfolio as unknown[]

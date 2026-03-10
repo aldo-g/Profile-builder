@@ -139,7 +139,7 @@ export default function SectionChat({ section, initialMessage }: Props): React.J
             <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold mr-3 flex-shrink-0 mt-0.5">
               AI
             </div>
-            <div className="max-w-[75%] rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed bg-gray-800 text-gray-100">
+            <div className="max-w-[75%] rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100">
               {streamingContent?.trimStart() ? (
                 <div>{formatAssistantContent(streamingContent.trimStart())}</div>
               ) : (
@@ -157,7 +157,7 @@ export default function SectionChat({ section, initialMessage }: Props): React.J
       </div>
 
       {/* Input */}
-      <div className="px-5 py-3 border-t border-gray-800 flex-shrink-0">
+      <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
         <div className="flex gap-2 items-end">
           <textarea
             ref={textareaRef}
@@ -177,7 +177,7 @@ export default function SectionChat({ section, initialMessage }: Props): React.J
             disabled={isStreaming}
             placeholder={isStreaming ? 'Claude is responding...' : 'Reply… (Enter to send, Shift+Enter for newline)'}
             rows={1}
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ minHeight: '44px', maxHeight: '120px' }}
           />
           <button

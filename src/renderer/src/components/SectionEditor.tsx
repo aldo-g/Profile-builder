@@ -44,7 +44,7 @@ function AddButton({ onClick, label = 'Add' }: { onClick: () => void; label?: st
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors mt-3"
+      className="flex items-center gap-1.5 text-xs text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors mt-3"
     >
       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -59,13 +59,13 @@ function Input({ label, value, onChange, placeholder, type = 'text', className =
 }): React.JSX.Element {
   return (
     <div className={className}>
-      {label && <label className="block text-[11px] text-gray-500 mb-1">{label}</label>}
+      {label && <label className="block text-[11px] text-gray-400 mb-1">{label}</label>}
       <input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+        className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
       />
     </div>
   )
@@ -135,28 +135,28 @@ function JobForm({ form, setForm, onSave, onCancel, saveLabel = 'Add', onRemove 
         <Input label="Start date" value={form.startDate} onChange={v => setForm(f => ({ ...f, startDate: v }))} placeholder="Jan 2023" />
         <Input label="End date" value={form.endDate} onChange={v => setForm(f => ({ ...f, endDate: v }))} placeholder="Dec 2024" />
       </div>
-      <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+      <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
         <input type="checkbox" checked={form.current} onChange={e => setForm(f => ({ ...f, current: e.target.checked }))} className="accent-blue-500" />
         Current role
       </label>
       <div>
-        <label className="block text-[11px] text-gray-500 mb-1">Role description / summary</label>
+        <label className="block text-[11px] text-gray-400 mb-1">Role description / summary</label>
         <textarea
           value={form.summary}
           onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
           placeholder="Describe the scope of the role, team size, responsibilities…"
           rows={3}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+          className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none"
         />
       </div>
       <div>
-        <label className="block text-[11px] text-gray-500 mb-1">Key achievements <span className="text-gray-600">(one per line)</span></label>
+        <label className="block text-[11px] text-gray-400 mb-1">Key achievements <span className="text-gray-400 dark:text-gray-600">(one per line)</span></label>
         <textarea
           value={form.achievements}
           onChange={e => setForm(f => ({ ...f, achievements: e.target.value }))}
           placeholder={"Reduced API latency by 40% through caching\nLed migration of 3 services to Kubernetes\nMentored 2 junior engineers"}
           rows={5}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none font-mono text-xs"
+          className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none font-mono text-xs"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ function JobForm({ form, setForm, onSave, onCancel, saveLabel = 'Add', onRemove 
         >
           {saveLabel}
         </button>
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Cancel</button>
         {onRemove && (
           <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
         )}
@@ -200,33 +200,33 @@ function JobRow({ job, onRemove, onSave }: {
 
   if (editing) {
     return (
-      <div className="py-3 border-b border-gray-800 last:border-0">
+      <div className="py-3 border-b border-gray-200 dark:border-gray-800 last:border-0">
         <JobForm form={form} setForm={setForm} onSave={saveEdit} onCancel={() => setEditing(false)} saveLabel="Save" onRemove={onRemove} />
       </div>
     )
   }
 
   return (
-    <div className="border-b border-gray-800 last:border-0">
+    <div className="border-b border-gray-200 dark:border-gray-800 last:border-0">
       {/* Header row — always visible */}
       <div
         className="flex items-start gap-2 py-2.5 cursor-pointer group"
         onClick={() => setExpanded(e => !e)}
       >
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white leading-snug">{job.title}</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-sm font-medium text-gray-900 dark:text-white leading-snug">{job.title}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {[job.company, job.department].filter(Boolean).join(' - ')}
             {job.startDate ? ` · ${job.startDate}${job.current ? ' – Present' : job.endDate ? ` – ${job.endDate}` : ''}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {!expanded && achievementCount > 0 && (
-            <span className="text-[10px] text-gray-600 mr-1">{achievementCount} achievement{achievementCount !== 1 ? 's' : ''}</span>
+            <span className="text-[10px] text-gray-400 mr-1">{achievementCount} achievement{achievementCount !== 1 ? 's' : ''}</span>
           )}
           {/* Chevron */}
           <svg
-            className={`w-3.5 h-3.5 text-gray-600 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -238,20 +238,20 @@ function JobRow({ job, onRemove, onSave }: {
       {expanded && (
         <div className="pb-3 space-y-2.5">
           {job.summary && (
-            <p className="text-xs text-gray-400 leading-relaxed">{job.summary}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{job.summary}</p>
           )}
           {achievementCount > 0 && (
             <ul className="space-y-1">
               {job.achievements.map((a: string, ai: number) => (
-                <li key={ai} className="text-xs text-gray-400 flex gap-2">
-                  <span className="text-gray-600 flex-shrink-0 mt-px">•</span>{a}
+                <li key={ai} className="text-xs text-gray-500 dark:text-gray-400 flex gap-2">
+                  <span className="text-gray-400 flex-shrink-0 mt-px">•</span>{a}
                 </li>
               ))}
             </ul>
           )}
           <button
             onClick={startEdit}
-            className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors mt-1"
+            className="flex items-center gap-1.5 text-xs text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors mt-1"
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -288,11 +288,11 @@ function WorkExperienceEditor({ profile, save }: { profile: Record<string, unkno
   return (
     <div>
       {jobs.map((j: any, i: number) => (
-        <JobRow key={i} job={j} onRemove={() => removeJob(i)} onSave={(updated) => updateJob(i, updated)} />
+        <JobRow key={`${j.title}-${j.company}-${i}`} job={j} onRemove={() => removeJob(i)} onSave={(updated) => updateJob(i, updated)} />
       ))}
 
       {adding ? (
-        <div className="pt-3 border-t border-gray-800">
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
           <JobForm form={form} setForm={setForm} onSave={addJob} onCancel={() => { setAdding(false); setForm(EMPTY_JOB) }} />
         </div>
       ) : (
@@ -322,7 +322,7 @@ function EduRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; o
 
   if (editing) {
     return (
-      <div className="py-3 border-b border-gray-800 last:border-0 space-y-2">
+      <div className="py-3 border-b border-gray-200 dark:border-gray-800 last:border-0 space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <Input label="Institution *" value={form.institution} onChange={v => setForm(f => ({ ...f, institution: v }))} placeholder="University of Sydney" />
           <Input label="Degree / qualification" value={form.degree} onChange={v => setForm(f => ({ ...f, degree: v }))} placeholder="B.Sc Computer Science" />
@@ -334,12 +334,12 @@ function EduRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; o
           <Input label="Grade / result" value={form.grade} onChange={v => setForm(f => ({ ...f, grade: v }))} placeholder="First Class" />
         </div>
         <div>
-          <label className="block text-[11px] text-gray-500 mb-1">Additional notes</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Thesis topic, notable modules, activities…" rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
+          <label className="block text-[11px] text-gray-400 mb-1">Additional notes</label>
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Thesis topic, notable modules, activities…" rows={2} className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
         </div>
         <div className="flex items-center gap-2">
           <button onClick={saveEdit} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors">Save</button>
-          <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+          <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Cancel</button>
           <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
         </div>
       </div>
@@ -347,14 +347,14 @@ function EduRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; o
   }
 
   return (
-    <div className="flex items-start gap-2 py-2.5 border-b border-gray-800 last:border-0 group">
+    <div className="flex items-start gap-2 py-2.5 border-b border-gray-200 dark:border-gray-800 last:border-0 group">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white leading-snug">{item.degree || item.institution}</p>
-        <p className="text-xs text-gray-400">{item.degree ? item.institution : ''}{item.startDate ? ` · ${item.startDate}${item.endDate ? ` – ${item.endDate}` : ''}` : ''}</p>
-        {item.description && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.description}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white leading-snug">{item.degree || item.institution}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{item.degree ? item.institution : ''}{item.startDate ? ` · ${item.startDate}${item.endDate ? ` – ${item.endDate}` : ''}` : ''}</p>
+        {item.description && <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        <button onClick={startEdit} className="text-gray-600 hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
+        <button onClick={startEdit} className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
       </div>
@@ -380,10 +380,10 @@ function EducationEditor({ profile, save }: { profile: Record<string, unknown>; 
   return (
     <div>
       {items.map((e: any, i: number) => (
-        <EduRow key={i} item={e} onRemove={() => remove(i)} onSave={(u) => update(i, u)} />
+        <EduRow key={`${e.institution}-${e.degree}-${i}`} item={e} onRemove={() => remove(i)} onSave={(u) => update(i, u)} />
       ))}
       {adding ? (
-        <div className="pt-3 border-t border-gray-800 space-y-2">
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-800 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <Input label="Institution *" value={form.institution} onChange={v => setForm(f => ({ ...f, institution: v }))} placeholder="University of Sydney" />
             <Input label="Degree / qualification" value={form.degree} onChange={v => setForm(f => ({ ...f, degree: v }))} placeholder="B.Sc Computer Science" />
@@ -395,12 +395,12 @@ function EducationEditor({ profile, save }: { profile: Record<string, unknown>; 
             <Input label="Grade / result" value={form.grade} onChange={v => setForm(f => ({ ...f, grade: v }))} placeholder="First Class" />
           </div>
           <div>
-            <label className="block text-[11px] text-gray-500 mb-1">Additional notes</label>
-            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Thesis topic, notable modules, activities…" rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
+            <label className="block text-[11px] text-gray-400 mb-1">Additional notes</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Thesis topic, notable modules, activities…" rows={2} className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
           </div>
           <div className="flex gap-2">
             <SaveRowButton onClick={add} />
-            <button onClick={() => { setAdding(false); setForm(EMPTY_EDU) }} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+            <button onClick={() => { setAdding(false); setForm(EMPTY_EDU) }} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Cancel</button>
           </div>
         </div>
       ) : (
@@ -430,7 +430,7 @@ function CertRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; 
 
   if (editing) {
     return (
-      <div className="py-3 border-b border-gray-800 last:border-0 space-y-2">
+      <div className="py-3 border-b border-gray-200 dark:border-gray-800 last:border-0 space-y-2">
         <Input label="Certification name *" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="AWS Solutions Architect" />
         <div className="grid grid-cols-2 gap-2">
           <Input label="Issuer" value={form.issuer} onChange={v => setForm(f => ({ ...f, issuer: v }))} placeholder="Amazon Web Services" />
@@ -442,7 +442,7 @@ function CertRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; 
         </div>
         <div className="flex items-center gap-2">
           <button onClick={saveEdit} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors">Save</button>
-          <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+          <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Cancel</button>
           <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />
         </div>
       </div>
@@ -450,14 +450,14 @@ function CertRow({ item, onRemove, onSave }: { item: any; onRemove: () => void; 
   }
 
   return (
-    <div className="flex items-center gap-2 py-2.5 border-b border-gray-800 last:border-0 group">
+    <div className="flex items-center gap-2 py-2.5 border-b border-gray-200 dark:border-gray-800 last:border-0 group">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white leading-snug">{item.name}</p>
-        <p className="text-xs text-gray-400">{[item.issuer, item.date].filter(Boolean).join(' · ')}</p>
-        {item.credentialId && <p className="text-xs text-gray-600 mt-0.5">ID: {item.credentialId}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white leading-snug">{item.name}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{[item.issuer, item.date].filter(Boolean).join(' · ')}</p>
+        {item.credentialId && <p className="text-xs text-gray-400 mt-0.5">ID: {item.credentialId}</p>}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        <button onClick={startEdit} className="text-gray-600 hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
+        <button onClick={startEdit} className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
       </div>
@@ -483,10 +483,10 @@ function CertificationsEditor({ profile, save }: { profile: Record<string, unkno
   return (
     <div>
       {items.map((c: any, i: number) => (
-        <CertRow key={i} item={c} onRemove={() => remove(i)} onSave={(u) => update(i, u)} />
+        <CertRow key={`${c.name}-${i}`} item={c} onRemove={() => remove(i)} onSave={(u) => update(i, u)} />
       ))}
       {adding ? (
-        <div className="pt-3 border-t border-gray-800 space-y-2">
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-800 space-y-2">
           <Input label="Certification name *" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="AWS Solutions Architect" />
           <div className="grid grid-cols-2 gap-2">
             <Input label="Issuer" value={form.issuer} onChange={v => setForm(f => ({ ...f, issuer: v }))} placeholder="Amazon Web Services" />
@@ -498,7 +498,7 @@ function CertificationsEditor({ profile, save }: { profile: Record<string, unkno
           </div>
           <div className="flex gap-2">
             <SaveRowButton onClick={add} />
-            <button onClick={() => { setAdding(false); setForm(EMPTY_CERT) }} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+            <button onClick={() => { setAdding(false); setForm(EMPTY_CERT) }} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Cancel</button>
           </div>
         </div>
       ) : (
@@ -535,9 +535,9 @@ function SkillsEditor({ profile, save }: { profile: Record<string, unknown>; sav
   }
 
   const SkillTag = ({ name, cat }: { name: string; cat: SkillCategory }) => (
-    <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 text-gray-300 text-xs px-2 py-1 rounded-md">
+    <span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-md">
       {name}
-      <button onClick={() => removeSkill(cat, name)} className="text-gray-600 hover:text-red-400 transition-colors ml-0.5">
+      <button onClick={() => removeSkill(cat, name)} className="text-gray-400 hover:text-red-400 transition-colors ml-0.5">
         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -549,19 +549,19 @@ function SkillsEditor({ profile, save }: { profile: Record<string, unknown>; sav
     <div className="space-y-4">
       {technical.length > 0 && (
         <div>
-          <p className="text-[11px] text-gray-500 mb-2">Technical</p>
+          <p className="text-[11px] text-gray-400 mb-2">Technical</p>
           <div className="flex flex-wrap gap-1.5">{technical.map(s => <SkillTag key={s} name={s} cat="technical" />)}</div>
         </div>
       )}
       {domains.length > 0 && (
         <div>
-          <p className="text-[11px] text-gray-500 mb-2">Domains</p>
+          <p className="text-[11px] text-gray-400 mb-2">Domains</p>
           <div className="flex flex-wrap gap-1.5">{domains.map(s => <SkillTag key={s} name={s} cat="domains" />)}</div>
         </div>
       )}
       {tools.length > 0 && (
         <div>
-          <p className="text-[11px] text-gray-500 mb-2">Tools</p>
+          <p className="text-[11px] text-gray-400 mb-2">Tools</p>
           <div className="flex flex-wrap gap-1.5">{tools.map(s => <SkillTag key={s} name={s} cat="tools" />)}</div>
         </div>
       )}
@@ -574,13 +574,13 @@ function SkillsEditor({ profile, save }: { profile: Record<string, unknown>; sav
             onChange={e => setNewSkill(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill() } }}
             placeholder="Add a skill…"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
         <select
           value={category}
           onChange={e => setCategory(e.target.value as SkillCategory)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+          className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-2 text-xs text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500"
         >
           <option value="technical">Technical</option>
           <option value="domains">Domain</option>
@@ -605,8 +605,8 @@ function ProjectForm({ form, setForm, onSave, onCancel, saveLabel = 'Add', onRem
     <div className="space-y-2">
       <Input label="Project name *" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="My Project" />
       <div>
-        <label className="block text-[11px] text-gray-500 mb-1">Description</label>
-        <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What does it do? What problem does it solve?" rows={3} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
+        <label className="block text-[11px] text-gray-400 mb-1">Description</label>
+        <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What does it do? What problem does it solve?" rows={3} className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Input label="URL" value={form.url} onChange={v => setForm(f => ({ ...f, url: v }))} placeholder="https://..." />
@@ -614,7 +614,7 @@ function ProjectForm({ form, setForm, onSave, onCancel, saveLabel = 'Add', onRem
       </div>
       <div className="flex items-center gap-2">
         <button onClick={onSave} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors">{saveLabel}</button>
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Cancel</button>
         {onRemove && <DeleteButton onClick={(e) => { e.stopPropagation(); onRemove() }} />}
       </div>
     </div>
@@ -635,27 +635,27 @@ function ProjectRow({ item, onRemove, onSave }: { item: any; onRemove: () => voi
 
   if (editing) {
     return (
-      <div className="py-3 border-b border-gray-800 last:border-0">
+      <div className="py-3 border-b border-gray-200 dark:border-gray-800 last:border-0">
         <ProjectForm form={form} setForm={setForm} onSave={saveEdit} onCancel={() => setEditing(false)} saveLabel="Save" onRemove={onRemove} />
       </div>
     )
   }
 
   return (
-    <div className="flex items-start gap-2 py-2.5 border-b border-gray-800 last:border-0 group">
+    <div className="flex items-start gap-2 py-2.5 border-b border-gray-200 dark:border-gray-800 last:border-0 group">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white leading-snug">{item.name}</p>
-        {item.description && <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white leading-snug">{item.name}</p>
+        {item.description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>}
         {Array.isArray(item.technologies) && item.technologies.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {item.technologies.map((t: string, ti: number) => (
-              <span key={ti} className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{t}</span>
+              <span key={ti} className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">{t}</span>
             ))}
           </div>
         )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        <button onClick={startEdit} className="text-gray-600 hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
+        <button onClick={startEdit} className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
       </div>
@@ -682,10 +682,10 @@ function PortfolioEditor({ profile, save }: { profile: Record<string, unknown>; 
   return (
     <div>
       {items.map((p: any, i: number) => (
-        <ProjectRow key={i} item={p} onRemove={() => remove(i)} onSave={(u) => update(i, u)} />
+        <ProjectRow key={`${p.name}-${i}`} item={p} onRemove={() => remove(i)} onSave={(u) => update(i, u)} />
       ))}
       {adding ? (
-        <div className="pt-3 border-t border-gray-800">
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
           <ProjectForm form={form} setForm={setForm} onSave={add} onCancel={() => { setAdding(false); setForm(EMPTY_PROJECT) }} />
         </div>
       ) : (
@@ -730,18 +730,18 @@ function LanguagesSoftSkillsEditor({ profile, save }: { profile: Record<string, 
     <div className="space-y-5">
       {/* Languages */}
       <div>
-        <p className="text-xs text-gray-500 mb-2">Languages</p>
+        <p className="text-xs text-gray-400 mb-2">Languages</p>
         <div className="space-y-1.5">
           {languages.map((l: any, i: number) => (
             <div key={i} className="flex items-center gap-2 group">
-              <span className="text-sm text-white flex-1">{l.language}</span>
+              <span className="text-sm text-gray-900 dark:text-white flex-1">{l.language}</span>
               <select
                 value={l.proficiency ?? 'Professional'}
                 onChange={e => {
                   const updated = languages.map((lang: any, idx: number) => idx === i ? { ...lang, proficiency: e.target.value } : lang)
                   save({ ...profile, languages: updated })
                 }}
-                className="bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300 focus:outline-none focus:border-blue-500"
+                className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-600 dark:text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 {PROFICIENCY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -755,12 +755,12 @@ function LanguagesSoftSkillsEditor({ profile, save }: { profile: Record<string, 
             onChange={e => setNewLang(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLang() } }}
             placeholder="Language"
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
           />
           <select
             value={langProf}
             onChange={e => setLangProf(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-2 text-xs text-gray-600 dark:text-gray-300 focus:outline-none focus:border-blue-500"
           >
             {PROFICIENCY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -770,14 +770,14 @@ function LanguagesSoftSkillsEditor({ profile, save }: { profile: Record<string, 
 
       {/* Soft skills */}
       <div>
-        <p className="text-xs text-gray-500 mb-2">Soft Skills</p>
+        <p className="text-xs text-gray-400 mb-2">Soft Skills</p>
         <div className="flex flex-wrap gap-1.5 mb-2">
           {softSkills.map((s: any, i: number) => {
             const label = typeof s === 'string' ? s : s.skill
             return (
-              <span key={i} className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 text-gray-300 text-xs px-2 py-1 rounded-md">
+              <span key={i} className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-md">
                 {label}
-                <button onClick={() => removeSoft(i)} className="text-gray-600 hover:text-red-400 transition-colors ml-0.5">
+                <button onClick={() => removeSoft(i)} className="text-gray-400 hover:text-red-400 transition-colors ml-0.5">
                   <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -792,7 +792,7 @@ function LanguagesSoftSkillsEditor({ profile, save }: { profile: Record<string, 
             onChange={e => setNewSkill(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSoft() } }}
             placeholder="e.g. Communication, Leadership"
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
           />
           <SaveRowButton onClick={addSoft} />
         </div>

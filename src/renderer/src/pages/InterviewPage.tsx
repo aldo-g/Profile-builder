@@ -12,15 +12,15 @@ export default function InterviewPage(): React.JSX.Element {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-950">
+    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-3xl mx-auto px-6 py-8">
         {/* Completeness bar */}
         <div className="mb-8">
-          <div className="flex justify-between text-xs text-gray-400 mb-2">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
             <span>Profile completeness</span>
             <span>{completedCount} / {WIZARD_SECTIONS.length} sections done</span>
           </div>
-          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-500 rounded-full transition-all duration-500"
               style={{ width: `${completionPct}%` }}

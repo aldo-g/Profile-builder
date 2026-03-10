@@ -7,7 +7,7 @@ Input formats you may encounter:
 - LinkedIn profile export
 - A bio or personal summary
 - Free-form career notes
-- Code files such as TypeScript/JavaScript arrays or objects describing portfolio projects (e.g. a \`projects\` array with title, description, technologies, githubUrl fields) — treat these as portfolio data
+- Code files such as TypeScript/JavaScript arrays or objects describing personal/side projects (e.g. a \`projects\` array with title, description, technologies, githubUrl fields) — treat these as portfolio data only if they are personal or open-source projects, NOT work projects done as part of employment
 - Any other text that describes a person's professional background
 
 Extract everything you can find:
@@ -16,7 +16,7 @@ Extract everything you can find:
 - Every education entry: institution, degree, field, dates, grade/GPA if present
 - All certifications: name, issuer, date, credential ID if present
 - Technical skills, tools, domains, programming languages — infer these from project technology lists if no explicit skills section exists
-- Portfolio projects: map title→name, description→description, technologies→technologies, githubUrl→url
+- Portfolio projects (personal side-projects and open-source contributions only — do NOT include work projects done as part of employment): map title→name, description→description, technologies→technologies, githubUrl→githubUrl, websiteUrl→websiteUrl
 - Languages spoken and proficiency levels
 - Soft skills and competencies mentioned
 
@@ -111,6 +111,8 @@ const EXTRACT_PROFILE_TOOL: Anthropic.Tool = {
             description: { type: 'string' },
             technologies: { type: 'array', items: { type: 'string' } },
             url: { type: 'string' },
+            githubUrl: { type: 'string' },
+            websiteUrl: { type: 'string' },
             highlights: { type: 'array', items: { type: 'string' } }
           }
         }
@@ -165,9 +167,19 @@ export async function runImporter(input: ImporterInput): Promise<Record<string, 
 
   const userMessage = parts.join('\n\n---\n\n')
 
+  // Rough token estimate: ~4 chars per token. Sonnet context is 200k tokens,
+  // but large inputs risk truncating the output. Warn above ~100k tokens (~400k chars).
+  const estimatedTokens = Math.round(userMessage.length / 4)
+  if (estimatedTokens > 100_000) {
+    throw new Error(
+      `Input is too large to process safely (~${estimatedTokens.toLocaleString()} tokens). ` +
+      `Please split your data into smaller imports — for example, import your CV first, then your portfolio separately.`
+    )
+  }
+
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     tools: [EXTRACT_PROFILE_TOOL],
     tool_choice: { type: 'any' },

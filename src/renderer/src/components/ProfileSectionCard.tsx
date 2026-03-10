@@ -52,13 +52,13 @@ function SectionQuestions({ section }: { section: WizardSection }): React.JSX.El
   }
 
   return (
-    <div className="px-5 py-4 border-t border-gray-800">
+    <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-800">
       <p className="text-xs text-gray-500 mb-3">Help expand your experience by answering these key questions</p>
       {loading ? (
-        <div className="flex gap-1.5 items-center text-xs text-gray-600">
-          <span className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <span className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <span className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        <div className="flex gap-1.5 items-center text-xs text-gray-400">
+          <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
       ) : questions.length > 0 ? (
         <div className="flex flex-col gap-2">
@@ -66,14 +66,14 @@ function SectionQuestions({ section }: { section: WizardSection }): React.JSX.El
             <button
               key={i}
               onClick={() => setSelectedQuestion(q)}
-              className="text-left text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 hover:text-white border border-gray-700 hover:border-gray-600 rounded-lg px-3 py-2.5 transition-all leading-relaxed"
+              className="text-left text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 rounded-lg px-3 py-2.5 transition-all leading-relaxed"
             >
               {q}
             </button>
           ))}
           <button
             onClick={() => setSelectedQuestion('')}
-            className="text-left text-xs text-gray-500 hover:text-gray-400 mt-1 transition-colors"
+            className="text-left text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-1 transition-colors"
           >
             Or type your own response →
           </button>
@@ -81,7 +81,7 @@ function SectionQuestions({ section }: { section: WizardSection }): React.JSX.El
       ) : (
         <button
           onClick={() => setSelectedQuestion('')}
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           Add more detail →
         </button>
@@ -109,8 +109,8 @@ export default function ProfileSectionCard({ section, isExpanded, onExpand }: Pr
       ref={cardRef}
       className={`rounded-xl border transition-all duration-200 ${
         isExpanded
-          ? 'border-blue-600 bg-gray-900'
-          : 'border-gray-800 bg-gray-900 hover:border-gray-700'
+          ? 'border-blue-500 dark:border-blue-600 bg-white dark:bg-gray-900'
+          : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700'
       }`}
     >
       {/* Card header — always visible, click to toggle */}
@@ -119,16 +119,16 @@ export default function ProfileSectionCard({ section, isExpanded, onExpand }: Pr
         onClick={onExpand}
       >
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-white">{section.label}</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{section.label}</h3>
           <p className="text-xs text-gray-500 mt-0.5">{section.description}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {isComplete ? (
-            <span className="text-xs font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-400/10 px-2 py-0.5 rounded-full">
               Done
             </span>
           ) : (
-            <span className="text-xs font-medium text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
               Incomplete
             </span>
           )}
@@ -145,7 +145,7 @@ export default function ProfileSectionCard({ section, isExpanded, onExpand }: Pr
 
       {/* Expanded body */}
       {isExpanded && (
-        <div className="border-t border-gray-800">
+        <div className="border-t border-gray-200 dark:border-gray-800">
           {section.id === 'personal' ? (
             // Personal Info: plain editable form, no AI chat
             <div className="px-5 py-5">
@@ -154,7 +154,7 @@ export default function ProfileSectionCard({ section, isExpanded, onExpand }: Pr
           ) : (
             <>
               {/* Editable list — add/delete items directly */}
-              <div className="px-5 py-5 border-b border-gray-800 overflow-y-auto" style={{ maxHeight: '500px' }}>
+              <div className="px-5 py-5 border-b border-gray-200 dark:border-gray-800 overflow-y-auto" style={{ maxHeight: '500px' }}>
                 <SectionEditor section={section} />
               </div>
 

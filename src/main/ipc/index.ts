@@ -8,7 +8,10 @@ import { runImporter } from '../../agents/importer'
 import { deduplicateProfile, cleanProfile } from '../../agents/deduplicator'
 import { runGapAnalyser, runGapAnalyserChat } from '../../agents/gap-analyser'
 import { runGenerator } from '../../agents/generator'
-import type { GapAnalysis } from '../../schema/profile.schema'
+import { runResearcher } from '../../agents/researcher'
+import { runOverseer } from '../../agents/overseer'
+import { runEditor } from '../../agents/editor'
+import type { GapAnalysis, OverseerResult } from '../../schema/profile.schema'
 import { parseLinkedInZip, linkedInDataToText } from '../linkedin-parser'
 import { linkedInOAuth } from '../linkedin-oauth'
 
@@ -256,6 +259,25 @@ ipcMain.handle('template:read', async (_event, payload: { type: 'cv' | 'coverLet
   }
 })
 
+// ── Company research ─────────────────────────────────────────────────────────
+
+ipcMain.handle('research:company', async (event, payload: { company: string }) => {
+  try {
+    const result = await runResearcher({
+      company: payload.company,
+      onChunk: (chunk: string) => {
+        if (!event.sender.isDestroyed()) event.sender.send('research:stream', chunk)
+      }
+    })
+    if (!event.sender.isDestroyed()) event.sender.send('research:done', result)
+  } catch (err: unknown) {
+    if (!event.sender.isDestroyed()) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      event.sender.send('research:error', { error: errorMessage })
+    }
+  }
+})
+
 // ── Document generation ──────────────────────────────────────────────────────
 
 ipcMain.handle('generate:docs', async (event, payload: {
@@ -264,27 +286,56 @@ ipcMain.handle('generate:docs', async (event, payload: {
   cvTemplateText: string
   coverLetterTemplateText?: string
   gapAnswers?: Record<string, string>
+  companySummary?: string
 }) => {
+  const send = (channel: string, data: unknown): void => {
+    if (!event.sender.isDestroyed()) event.sender.send(channel, data)
+  }
+
   try {
-    const result = await runGenerator({
+    // ── Phase 1: Generate ───────────────────────────────────────────────────
+    let generated = await runGenerator({
       profile: payload.profile,
       analysis: payload.analysis,
       cvTemplateText: payload.cvTemplateText,
       coverLetterTemplateText: payload.coverLetterTemplateText,
       gapAnswers: payload.gapAnswers,
-      onChunk: (chunk: string) => {
-        if (!event.sender.isDestroyed()) {
-          event.sender.send('generate:stream', chunk)
-        }
-      }
+      companySummary: payload.companySummary,
+      onChunk: (chunk: string) => send('generate:stream', chunk)
     })
 
-    if (event.sender.isDestroyed()) return
-    event.sender.send('generate:done', result)
+    // ── Phase 2: Overseer review ────────────────────────────────────────────
+    send('generate:stream', '\n\n[Overseer] Reviewing documents…')
+
+    const overseerResult: OverseerResult = await runOverseer({
+      cvMarkdown: generated.cvMarkdown,
+      coverLetterMarkdown: generated.coverLetterMarkdown,
+      analysis: payload.analysis,
+      companySummary: payload.companySummary
+    })
+
+    send('generate:stream', ` Score: ${overseerResult.score}/10`)
+
+    // ── Phase 3: Edit if needed (max 1 iteration) ───────────────────────────
+    if (!overseerResult.pass) {
+      const failCount = overseerResult.feedback.cv.length + overseerResult.feedback.coverLetter.length
+      send('generate:stream', `\n[Editor] Refining ${failCount} section${failCount !== 1 ? 's' : ''}…`)
+
+      const edited = await runEditor({
+        cvMarkdown: generated.cvMarkdown,
+        coverLetterMarkdown: generated.coverLetterMarkdown,
+        overseerResult,
+        onChunk: (chunk: string) => send('generate:stream', chunk)
+      })
+
+      generated = { ...generated, cvMarkdown: edited.cvMarkdown, coverLetterMarkdown: edited.coverLetterMarkdown }
+    }
+
+    send('generate:done', { ...generated, overseerResult })
   } catch (err: unknown) {
     if (event.sender.isDestroyed()) return
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-    event.sender.send('generate:error', { error: errorMessage })
+    send('generate:error', { error: errorMessage })
   }
 })
 

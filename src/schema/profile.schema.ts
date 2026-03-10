@@ -65,10 +65,38 @@ export interface JobAnalyseResult {
   openingMessage: string
 }
 
+export interface SectionFeedback {
+  section: string    // exact markdown heading e.g. "## EXPERIENCE"
+  issue: string
+  suggestion: string
+}
+
+export interface OverseerResult {
+  pass: boolean
+  score: number  // weighted average, 1 decimal place
+  dimensions: {
+    keyword_coverage: number       // weight 0.3
+    tone_culture_fit: number       // weight 0.2
+    structural_completeness: number // weight 0.2
+    holistic: number               // weight 0.3
+  }
+  feedback: {
+    cv: SectionFeedback[]
+    coverLetter: SectionFeedback[]
+  }
+}
+
+export interface CompanyResearch {
+  summary: string
+  sources: string[]
+  confidence: 'high' | 'medium' | 'low'
+}
+
 export interface GeneratedDocs {
   cvMarkdown: string
   coverLetterMarkdown: string
   generatedAt: number
   jobTitle: string
   company: string
+  overseerResult?: OverseerResult
 }

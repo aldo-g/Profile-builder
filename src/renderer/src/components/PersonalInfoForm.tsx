@@ -88,7 +88,7 @@ export default function PersonalInfoForm(): React.JSX.Element {
 
       {/* Connected accounts */}
       <div className="space-y-3">
-        <p className="text-xs text-gray-500 uppercase tracking-wider">Online presence</p>
+        <p className="text-xs text-gray-400 uppercase tracking-wider">Online presence</p>
 
         {/* LinkedIn — show as connected badge if present, otherwise input */}
         {linkedinUrl ? (
@@ -96,7 +96,7 @@ export default function PersonalInfoForm(): React.JSX.Element {
             label="LinkedIn"
             url={linkedinUrl}
             icon={<LinkedInIcon />}
-            color="text-blue-400 bg-blue-400/10 border-blue-400/20"
+            color="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-400/10 border-blue-200 dark:border-blue-400/20"
           />
         ) : (
           <Field label="LinkedIn URL" value="" onChange={() => {}} placeholder="https://linkedin.com/in/… (connect on the intro screen)" disabled />
@@ -128,7 +128,7 @@ export default function PersonalInfoForm(): React.JSX.Element {
         >
           Save
         </button>
-        {saved && <span className="text-xs text-green-400">Saved</span>}
+        {saved && <span className="text-xs text-green-600 dark:text-green-400">Saved</span>}
       </div>
     </div>
   )
@@ -145,7 +145,7 @@ function ConnectedBadge({ label, url, icon, color }: {
 
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
       <a
         href={url}
         target="_blank"
@@ -181,10 +181,10 @@ function Field({
 }): React.JSX.Element {
   return (
     <div>
-      <label className="block text-xs text-gray-500 mb-1">{label}</label>
-      <div className="flex items-center bg-gray-800 border border-gray-700 rounded-lg overflow-hidden focus-within:border-blue-500 transition-colors">
+      <label className="block text-xs text-gray-400 mb-1">{label}</label>
+      <div className="flex items-center bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden focus-within:border-blue-500 transition-colors">
         {prefix && (
-          <span className="pl-3 text-sm text-gray-500 select-none flex-shrink-0">{prefix}</span>
+          <span className="pl-3 text-sm text-gray-400 select-none flex-shrink-0">{prefix}</span>
         )}
         <input
           type={type}
@@ -192,7 +192,7 @@ function Field({
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 bg-transparent px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
         />
       </div>
     </div>

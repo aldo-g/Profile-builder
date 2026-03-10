@@ -78,6 +78,30 @@ const api = {
     }
   },
 
+  research: {
+    company: (payload: { company: string }) =>
+      ipcRenderer.invoke('research:company', payload),
+
+    onStream: (callback: (chunk: string) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, chunk: string) => callback(chunk)
+      ipcRenderer.on('research:stream', listener)
+      return () => ipcRenderer.removeListener('research:stream', listener)
+    },
+
+    onDone: (callback: (result: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, result: unknown) => callback(result)
+      ipcRenderer.on('research:done', listener)
+      return () => ipcRenderer.removeListener('research:done', listener)
+    },
+
+    onError: (callback: (payload: { error: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) =>
+        callback(payload as { error: string })
+      ipcRenderer.on('research:error', listener)
+      return () => ipcRenderer.removeListener('research:error', listener)
+    }
+  },
+
   templates: {
     save: (payload: { filePath: string; type: 'cv' | 'coverLetter' }) =>
       ipcRenderer.invoke('template:save', payload),
@@ -93,6 +117,8 @@ const api = {
       analysis: object
       cvTemplateText: string
       coverLetterTemplateText?: string
+      gapAnswers?: Record<string, string>
+      companySummary?: string
     }) => ipcRenderer.invoke('generate:docs', payload),
 
     pdf: (payload: { markdown: string; filename: string }) =>

@@ -99,6 +99,8 @@ const MERGE_PROFILE_TOOL: Anthropic.Tool = {
             description: { type: 'string' },
             technologies: { type: 'array', items: { type: 'string' } },
             url: { type: 'string' },
+            githubUrl: { type: 'string' },
+            websiteUrl: { type: 'string' },
             highlights: { type: 'array', items: { type: 'string' } }
           }
         }
@@ -167,7 +169,7 @@ export async function cleanProfile(
   const response = await withTimeout(
     client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: CLEAN_SYSTEM_PROMPT,
       tools: [CLEAN_PROFILE_TOOL],
       tool_choice: { type: 'any' },
@@ -188,10 +190,10 @@ export async function cleanProfile(
   return profile
 }
 
-// Keys that benefit from LLM dedup (arrays of objects + scalar objects that may conflict)
-const MERGE_KEYS = [
+// Keys handled by the LLM dedup (need semantic matching)
+const LLM_MERGE_KEYS = [
   'workExperience', 'education', 'certifications', 'skills',
-  'portfolio', 'languages', 'softSkills', 'personal', 'summary'
+  'languages', 'softSkills', 'personal', 'summary'
 ]
 
 export async function deduplicateProfile(
@@ -201,11 +203,23 @@ export async function deduplicateProfile(
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set.')
 
-  // Only send sections where extracted actually has data
+  let result: Record<string, unknown> = { ...existing }
+
+  // If only one side has portfolio data, no dedup needed — just use whichever exists
+  const existingPortfolio = Array.isArray(existing.portfolio) ? existing.portfolio : []
+  const extractedPortfolio = Array.isArray(extracted.portfolio) ? extracted.portfolio : []
+  const needsPortfolioLLM = existingPortfolio.length > 0 && extractedPortfolio.length > 0
+
+  // If only one side has portfolio data, merge without LLM
+  if (!needsPortfolioLLM && extractedPortfolio.length > 0) {
+    result.portfolio = [...existingPortfolio, ...extractedPortfolio]
+  }
+
+  // Only send sections where extracted actually has data to the LLM
   const existingSubset: Record<string, unknown> = {}
   const extractedSubset: Record<string, unknown> = {}
 
-  for (const key of MERGE_KEYS) {
+  for (const key of LLM_MERGE_KEYS) {
     const ext = extracted[key]
     if (ext === null || ext === undefined) continue
     if (Array.isArray(ext) && ext.length === 0) continue
@@ -214,9 +228,15 @@ export async function deduplicateProfile(
     extractedSubset[key] = ext
   }
 
-  // Nothing overlapping to merge — return existing with extracted scalar fields applied
+  // Include portfolio in LLM merge when both sides have entries (names may differ)
+  if (needsPortfolioLLM) {
+    existingSubset.portfolio = existingPortfolio
+    extractedSubset.portfolio = extractedPortfolio
+  }
+
+  // Nothing left for LLM — return early
   if (Object.keys(extractedSubset).length === 0) {
-    return { ...existing, ...extracted }
+    return result
   }
 
   const client = new Anthropic({ apiKey })
@@ -226,7 +246,7 @@ export async function deduplicateProfile(
   const response = await withTimeout(
     client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       tools: [MERGE_PROFILE_TOOL],
       tool_choice: { type: 'any' },
@@ -239,15 +259,12 @@ export async function deduplicateProfile(
   for (const block of response.content) {
     if (block.type === 'tool_use' && block.name === 'merge_profile') {
       const merged = block.input as Record<string, unknown>
-      // Apply merged sections on top of full existing profile, then layer in any
-      // top-level scalar fields from extracted that weren't part of the LLM merge
-      const result: Record<string, unknown> = { ...existing }
       for (const [k, v] of Object.entries(merged)) {
         if (v !== null && v !== undefined) result[k] = v
       }
       // Scalar top-level fields not handled by LLM (e.g. future keys)
       for (const [k, v] of Object.entries(extracted)) {
-        if (!MERGE_KEYS.includes(k) && v !== null && v !== undefined && !result[k]) {
+        if (!LLM_MERGE_KEYS.includes(k) && k !== 'portfolio' && v !== null && v !== undefined && !result[k]) {
           result[k] = v
         }
       }
@@ -255,6 +272,6 @@ export async function deduplicateProfile(
     }
   }
 
-  // Fallback: return existing untouched if LLM call unexpectedly returns no tool use
-  return existing
+  // Fallback: LLM call failed, return what we have (portfolio already handled above)
+  return result
 }

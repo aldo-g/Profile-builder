@@ -77,7 +77,7 @@ export default function ImportPage(): React.JSX.Element {
   return (
     <div className="flex flex-col h-full overflow-y-auto px-8 py-8 max-w-xl">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-white mb-1">Import documents</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Import documents</h2>
         <p className="text-sm text-gray-500 leading-relaxed">
           Add a CV, LinkedIn export, or paste any text — Claude will extract and merge it into your profile without overwriting existing data.
         </p>
@@ -93,8 +93,8 @@ export default function ImportPage(): React.JSX.Element {
           isDragging
             ? 'border-blue-500 bg-blue-500/5'
             : isLoading
-            ? 'border-gray-700 bg-gray-900/40 cursor-not-allowed'
-            : 'border-gray-700 hover:border-gray-600 hover:bg-gray-900/40'
+            ? 'border-gray-300 dark:border-gray-700 bg-gray-100/40 dark:bg-gray-900/40 cursor-not-allowed'
+            : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-100/40 dark:hover:bg-gray-900/40'
         }`}
       >
         <input ref={inputRef} type="file" accept=".pdf,.zip" className="hidden" onChange={onSelect} />
@@ -105,17 +105,17 @@ export default function ImportPage(): React.JSX.Element {
                 <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                 <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <p className="text-sm text-gray-400">Claude is reading your document…</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Claude is reading your document…</p>
             </>
           ) : (
             <>
-              <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center mb-2.5">
-                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center mb-2.5">
+                <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
               </div>
-              <p className="text-sm text-gray-300 mb-0.5">Drop a file or <span className="text-blue-400">browse</span></p>
-              <p className="text-xs text-gray-600">PDF (CV / résumé) · ZIP (LinkedIn data export)</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300 mb-0.5">Drop a file or <span className="text-blue-500 dark:text-blue-400">browse</span></p>
+              <p className="text-xs text-gray-400 dark:text-gray-600">PDF (CV / résumé) · ZIP (LinkedIn data export)</p>
             </>
           )}
         </div>
@@ -123,9 +123,9 @@ export default function ImportPage(): React.JSX.Element {
 
       {/* Divider */}
       <div className="flex items-center gap-3 mb-5">
-        <div className="flex-1 h-px bg-gray-800" />
-        <span className="text-xs text-gray-600">or paste text</span>
-        <div className="flex-1 h-px bg-gray-800" />
+        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
+        <span className="text-xs text-gray-400 dark:text-gray-600">or paste text</span>
+        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
       </div>
 
       {/* Text paste area */}
@@ -136,7 +136,7 @@ export default function ImportPage(): React.JSX.Element {
           disabled={isLoading}
           placeholder="Paste anything — a job history, LinkedIn About section, bio, old CV text…"
           rows={6}
-          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none disabled:opacity-50"
+          className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none disabled:opacity-50"
         />
         <button
           onClick={handleTextSubmit}
@@ -149,19 +149,19 @@ export default function ImportPage(): React.JSX.Element {
 
       {/* Status feedback */}
       {status === 'done' && (
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-green-950/50 border border-green-900 rounded-lg">
-          <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-900 rounded-lg">
+          <svg className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
-          <p className="text-xs text-green-400">{message}</p>
+          <p className="text-xs text-green-600 dark:text-green-400">{message}</p>
         </div>
       )}
       {status === 'error' && (
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-red-950/50 border border-red-900 rounded-lg">
-          <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-lg">
+          <svg className="w-4 h-4 text-red-500 dark:text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
-          <p className="text-xs text-red-400">{message}</p>
+          <p className="text-xs text-red-500 dark:text-red-400">{message}</p>
         </div>
       )}
     </div>

@@ -50,18 +50,18 @@ export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Ele
   }
 
   return (
-    <div className="flex h-screen bg-gray-950 text-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-hidden">
 
       {/* Full-page importing overlay */}
       {isImporting && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/95 backdrop-blur-sm">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-5">
             <svg className="w-10 h-10 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
               <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             <div className="text-center">
-              <p className="text-white font-semibold text-base">Reading your CV…</p>
+              <p className="text-gray-900 dark:text-white font-semibold text-base">Reading your CV…</p>
               <p className="text-gray-500 text-sm mt-1">Claude is extracting your career history</p>
             </div>
           </div>
@@ -70,7 +70,7 @@ export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Ele
 
       {/* Left panel — hero */}
       <div className="relative flex flex-col justify-between w-[52%] flex-shrink-0 px-14 py-12 overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_40%,rgba(59,130,246,0.08),transparent_70%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_40%,rgba(59,130,246,0.06),transparent_70%)]" />
 
         {/* Wordmark */}
         <div className="flex items-center gap-2.5 relative z-10">
@@ -79,17 +79,17 @@ export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Ele
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <span className="text-sm font-semibold text-white tracking-wide">Profile Builder</span>
-          <span className="text-xs text-gray-600 ml-1">by Claude</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-white tracking-wide">Profile Builder</span>
+          <span className="text-xs text-gray-400 ml-1">by Claude</span>
         </div>
 
         {/* Hero */}
         <div className="relative z-10">
-          <p className="text-xs font-semibold text-blue-400 tracking-widest uppercase mb-4">AI-powered career mapping</p>
-          <h1 className="text-4xl font-bold text-white leading-[1.15] mb-5">
+          <p className="text-xs font-semibold text-blue-500 dark:text-blue-400 tracking-widest uppercase mb-4">AI-powered career mapping</p>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white leading-[1.15] mb-5">
             Every role.<br />Every skill.<br />Nothing left out.
           </h1>
-          <p className="text-gray-400 text-sm leading-relaxed max-w-sm mb-10">
+          <p className="text-gray-500 text-sm leading-relaxed max-w-sm mb-10">
             Profile Builder interviews you to build a complete, structured record of your career — then uses it to tailor CVs and cover letters to any job, automatically.
           </p>
 
@@ -114,24 +114,24 @@ export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Ele
 
         {/* Privacy */}
         <div className="relative z-10 flex items-center gap-2">
-          <svg className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-400">
             Stored locally as <code className="text-gray-500">profile.json</code> — never uploaded anywhere.
           </p>
         </div>
       </div>
 
       {/* Divider */}
-      <div className="w-px bg-gray-800 flex-shrink-0" />
+      <div className="w-px bg-gray-200 dark:bg-gray-800 flex-shrink-0" />
 
       {/* Right panel — imports */}
       <div className="flex-1 flex flex-col justify-center px-12 py-12 overflow-y-auto">
         <div className="max-w-sm w-full mx-auto">
 
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-white mb-2">Give Claude a head start</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Give Claude a head start</h2>
             <p className="text-sm text-gray-500 leading-relaxed">
               Import your CV so Claude can pre-fill your history. Or skip and start fresh.
             </p>
@@ -160,8 +160,8 @@ export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Ele
 
           {/* Error */}
           {importError && (
-            <div className="mb-4 px-3 py-2.5 bg-red-950/50 border border-red-900 rounded-lg">
-              <p className="text-xs text-red-400">{importError}</p>
+            <div className="mb-4 px-3 py-2.5 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-900 rounded-lg">
+              <p className="text-xs text-red-500 dark:text-red-400">{importError}</p>
             </div>
           )}
 
@@ -181,7 +181,7 @@ export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Ele
             {hasBaseline && !isImporting && (
               <button
                 onClick={onContinue}
-                className="w-full py-2.5 rounded-lg text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                className="w-full py-2.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-400 transition-colors"
               >
                 Skip and start fresh
               </button>
@@ -212,7 +212,7 @@ interface DropZoneProps {
 function DropZone({ label, hint, accept, file, isDragging, inputRef, onDragOver, onDragLeave, onDrop, onSelect, onClear, icon }: DropZoneProps): React.JSX.Element {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-400 mb-2">{label}</label>
+      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{label}</label>
       <div
         onDragOver={(e) => { e.preventDefault(); onDragOver() }}
         onDragLeave={onDragLeave}
@@ -222,8 +222,8 @@ function DropZone({ label, hint, accept, file, isDragging, inputRef, onDragOver,
           isDragging
             ? 'border-blue-500 bg-blue-500/5'
             : file
-            ? 'border-green-800 bg-green-950/30 cursor-default'
-            : 'border-gray-800 hover:border-gray-700 hover:bg-gray-900/40 cursor-pointer'
+            ? 'border-green-500 dark:border-green-800 bg-green-50 dark:bg-green-950/30 cursor-default'
+            : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-100/50 dark:hover:bg-gray-900/40 cursor-pointer'
         }`}
       >
         <input
@@ -236,18 +236,18 @@ function DropZone({ label, hint, accept, file, isDragging, inputRef, onDragOver,
 
         {file ? (
           <div className="flex items-center gap-3 px-4 py-3.5">
-            <div className="w-8 h-8 rounded-md bg-green-900/50 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 rounded-md bg-green-100 dark:bg-green-900/50 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-green-400 font-medium truncate">{file.name}</p>
-              <p className="text-xs text-gray-600 mt-0.5">{(file.size / 1024).toFixed(0)} KB</p>
+              <p className="text-sm text-green-600 dark:text-green-400 font-medium truncate">{file.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{(file.size / 1024).toFixed(0)} KB</p>
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); onClear() }}
-              className="text-gray-600 hover:text-gray-400 transition-colors flex-shrink-0 p-1"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex-shrink-0 p-1"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -256,12 +256,12 @@ function DropZone({ label, hint, accept, file, isDragging, inputRef, onDragOver,
           </div>
         ) : (
           <div className="flex items-center gap-3 px-4 py-4">
-            <div className="w-9 h-9 rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center flex-shrink-0">
               {icon}
             </div>
             <div>
-              <p className="text-sm text-gray-400">Drop here or <span className="text-blue-400">browse</span></p>
-              <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{hint}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Drop here or <span className="text-blue-500 dark:text-blue-400">browse</span></p>
+              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{hint}</p>
             </div>
           </div>
         )}
@@ -273,11 +273,11 @@ function DropZone({ label, hint, accept, file, isDragging, inputRef, onDragOver,
 function Step({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }): React.JSX.Element {
   return (
     <div className="flex gap-3.5">
-      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center text-blue-400">
+      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center text-blue-500 dark:text-blue-400">
         {icon}
       </div>
       <div className="pt-0.5">
-        <h4 className="text-sm font-semibold text-white mb-0.5">{title}</h4>
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-0.5">{title}</h4>
         <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
       </div>
     </div>
