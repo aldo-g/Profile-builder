@@ -16,6 +16,7 @@ import { runEditor } from '../../agents/editor'
 import type { GapAnalysis, OverseerResult } from '../../schema/profile.schema'
 import { parseLinkedInZip, linkedInDataToText } from '../linkedin-parser'
 import { linkedInOAuth } from '../linkedin-oauth'
+import { markdownToHtml } from '../markdownToHtml'
 
 const require = createRequire(import.meta.url)
 
@@ -382,29 +383,16 @@ ipcMain.handle('generate:docs', async (event, payload: {
 })
 
 
-function markdownToHtml(md: string): string {
-  let html = md
-    // Headings
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // Bold / italic
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // List items (collected into <ul> blocks below)
-    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
-    // Horizontal rules
-    .replace(/^---+$/gm, '<hr>')
-    // Paragraphs: wrap consecutive non-tag lines
-    .split('\n')
-    .map(line => {
-      if (line.startsWith('<') || line.trim() === '') return line
-      return `<p>${line}</p>`
-    })
-    .join('\n')
-  // Wrap consecutive <li> in <ul>
-  html = html.replace(/((<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
-  return html
+// Cached hidden window used for printToPDF — created on first use, reused
+// across subsequent PDF exports to avoid spawning a new BrowserWindow each time.
+// Destroyed when the app quits (Electron handles this automatically).
+let _pdfWindow: BrowserWindow | null = null
+
+function getPdfWindow(): BrowserWindow {
+  if (_pdfWindow && !_pdfWindow.isDestroyed()) return _pdfWindow
+  _pdfWindow = new BrowserWindow({ show: false, width: 794, height: 1123, webPreferences: { sandbox: true } })
+  _pdfWindow.on('closed', () => { _pdfWindow = null })
+  return _pdfWindow
 }
 
 ipcMain.handle('generate:pdf', async (_event, payload: { markdown: string; filename: string }) => {
@@ -470,11 +458,10 @@ ipcMain.handle('generate:pdf', async (_event, payload: { markdown: string; filen
 <body>${html}</body>
 </html>`
 
-  const win = new BrowserWindow({ show: false, width: 794, height: 1123, webPreferences: { sandbox: true } })
+  const win = getPdfWindow()
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(styledHtml)}`)
 
   const pdfBuffer = await win.webContents.printToPDF({ pageSize: 'A4' })
-  win.destroy()
 
   writeFileSync(filePath, pdfBuffer)
   return { success: true, filePath }

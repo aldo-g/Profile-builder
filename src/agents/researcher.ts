@@ -64,35 +64,52 @@ export async function runResearcher(input: ResearcherInput): Promise<CompanyRese
   // Agentic loop: web_search_20250305 is a server-side tool — the API executes searches
   // automatically and embeds results in the response content. We only need to handle
   // report_company (our client-side tool) by returning its input.
-  for (let turn = 0; turn < 10; turn++) {
-    const response = await (client.beta.messages as any).create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      system: systemPrompt,
-      tools,
-      messages,
-      betas: ['web_search_2025_03_05']
-    })
+  try {
+    for (let turn = 0; turn < 10; turn++) {
+      const response = await (client.beta.messages as any).create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        system: systemPrompt,
+        tools,
+        messages,
+        betas: ['web_search_2025_03_05']
+      })
 
-    // Stream any text chunks to the UI
-    for (const block of response.content) {
-      if (block.type === 'text' && block.text) {
-        input.onChunk(block.text)
+      // Stream any text chunks to the UI
+      for (const block of response.content) {
+        if (block.type === 'text' && block.text) {
+          input.onChunk(block.text)
+        }
       }
-    }
 
-    // Check for report_company — return immediately when found
-    for (const block of response.content) {
-      if (block.type === 'tool_use' && block.name === 'report_company') {
-        return block.input as CompanyResearch
+      // Check for report_company — return immediately when found
+      for (const block of response.content) {
+        if (block.type === 'tool_use' && block.name === 'report_company') {
+          return block.input as CompanyResearch
+        }
       }
-    }
 
-    // Model finished a turn without calling report_company.
-    // Prompt it to now call report_company with its findings.
-    messages.push({ role: 'assistant', content: response.content })
-    messages.push({ role: 'user', content: 'Now call the report_company tool with your findings.' })
+      // Model finished a turn without calling report_company.
+      // Prompt it to now call report_company with its findings.
+      messages.push({ role: 'assistant', content: response.content })
+      messages.push({ role: 'user', content: 'Now call the report_company tool with your findings.' })
+    }
+  } catch (err: unknown) {
+    const reason = err instanceof Error ? err.message : String(err)
+    input.onChunk(`\n[Research unavailable: ${reason}. Continuing without company context.]`)
+    return {
+      summary: `Company research was unavailable (${reason}). The cover letter will be written without specific company context.`,
+      sources: [],
+      confidence: 'low'
+    }
   }
 
-  throw new Error('Researcher did not return structured company data.')
+  // Exhausted turns without a result — return a stub rather than throwing,
+  // so the generation pipeline can continue without company context.
+  input.onChunk('\n[Research timed out. Continuing without company context.]')
+  return {
+    summary: `Research for ${input.company} did not complete in time. The cover letter will be written without specific company context.`,
+    sources: [],
+    confidence: 'low'
+  }
 }
