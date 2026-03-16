@@ -11,11 +11,11 @@ interface Props {
 
 export default function GapSidebar({ analysis, cards, answeredSet, skippedSet, selectedCardIndex }: Props): React.JSX.Element {
   return (
-    <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-800 flex-1">
-      <FitScoreBadge score={analysis.score} />
+    <div className="px-4 py-4 border-t border-gray-200 dark:border-gray-800 flex-1 overflow-y-auto">
+      <FitScoreGauge score={analysis.score} />
 
       {cards.length > 0 && (
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4 text-center">
           {answeredSet.size} of {cards.length} gaps addressed
         </p>
       )}
@@ -64,17 +64,38 @@ export default function GapSidebar({ analysis, cards, answeredSet, skippedSet, s
   )
 }
 
-function FitScoreBadge({ score }: { score: number }): React.JSX.Element {
-  const colour = score >= 70
-    ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-400/10 border-green-200 dark:border-green-700/40'
-    : score >= 40
-    ? 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-400/10 border-yellow-200 dark:border-yellow-700/40'
-    : 'text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-400/10 border-red-200 dark:border-red-700/40'
+// ── Score bar ──────────────────────────────────────────────────────────────────
+
+function FitScoreGauge({ score }: { score: number }): React.JSX.Element {
   const label = score >= 70 ? 'Strong match' : score >= 40 ? 'Partial match' : 'Weak match'
+  const barColour = score >= 70
+    ? 'bg-green-500'
+    : score >= 40
+    ? 'bg-amber-500'
+    : 'bg-red-500'
+  const labelColour = score >= 70
+    ? 'text-green-600 dark:text-green-400'
+    : score >= 40
+    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-red-600 dark:text-red-400'
+
   return (
-    <div className={`rounded-xl border px-4 py-3 mb-4 flex items-center justify-between ${colour}`}>
-      <span className="text-xs font-medium">{label}</span>
-      <span className="text-2xl font-bold">{score}<span className="text-sm font-normal opacity-60">/100</span></span>
+    <div className="mb-4">
+      {/* Score number + label */}
+      <div className="flex items-baseline justify-between mb-2">
+        <div className="flex items-baseline gap-1">
+          <span className={`text-3xl font-bold tracking-tight leading-none ${labelColour}`}>{score}</span>
+          <span className="text-xs text-gray-400 font-medium">/100</span>
+        </div>
+        <span className={`text-xs font-semibold ${labelColour}`}>{label}</span>
+      </div>
+      {/* Bar */}
+      <div className="h-2 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${barColour}`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
     </div>
   )
 }

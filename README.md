@@ -1,34 +1,28 @@
 # Profile Builder
 
-A desktop application that interviews you about your professional experience and builds a comprehensive, structured JSON profile of you. That profile is then used to generate tailored CVs and cover letters for specific job listings — powered by Claude AI.
+A desktop application that AI-interviews you to build a comprehensive professional profile, then uses it to generate tailored CVs and cover letters for specific job listings — powered by Claude AI.
+
+---
+
+## How It Works
+
+![CV Enhancement Pipeline](resources/CV%20Enhancement%20Pipeline.png)
 
 ---
 
 ## What It Does
 
-### Phase 1 — Build Your Profile
-You are guided through a hybrid wizard + chat experience. The app walks you through structured sections (work history, skills, education, certifications, portfolio, etc.) but uses an AI agent to ask follow-up questions, dig deeper, and fill in details you may have missed. The result is a rich, deeply detailed JSON file that captures everything about your professional life.
+**Phase 1 — Build Your Profile**
+A hybrid wizard + chat experience guides you through structured sections (work history, skills, education, certifications, portfolio, etc.). An AI agent asks follow-up questions, digs deeper, and fills in details you may have missed. The result is a rich JSON profile that captures everything about your professional life.
 
-### Phase 2 — Input a Job Listing
-Paste or upload a job listing. The AI compares it against your profile JSON, identifies gaps, and asks you targeted questions to fill them. If you provide new information, it updates your profile. The result is a profile that grows richer over time.
+**Phase 2 — Match a Job Listing**
+Paste a job listing. The AI compares it against your profile, identifies gaps, and asks targeted questions to fill them. Your profile grows richer with each job you target.
 
-### Phase 3 — Generate Documents
+**Phase 3 — Generate Documents**
 With a filled profile and a target job listing, the AI generates:
 - A tailored CV (filtered and ordered for the specific role)
 - A personalised cover letter
-- Optionally: a skills gap analysis
-
----
-
-## Key Features
-
-- **Electron + React + TypeScript** desktop app (cross-platform)
-- **Claude AI** (Anthropic API) as the interview and generation agent
-- **Hybrid UI**: structured wizard sections + conversational chat per section
-- **Multi-source input**: PDF upload (CVs, certs), LinkedIn export, plain text paste, manual entry
-- **Single source of truth**: one `profile.json` that grows over time
-- **Job-aware gap filling**: when you give it a job listing, it knows what to ask
-- **Non-destructive updates**: profile is append/update only, nothing is lost
+- A skills gap analysis
 
 ---
 
@@ -36,14 +30,82 @@ With a filled profile and a target job listing, the AI generates:
 
 | Layer | Technology |
 |---|---|
-| Desktop shell | Electron |
-| Frontend | React + TypeScript |
-| Styling | TailwindCSS |
+| Desktop shell | Electron 33 |
+| Frontend | React 18 + TypeScript |
+| Styling | TailwindCSS 3.4 |
 | AI | Anthropic Claude API (`claude-sonnet-4-6`) |
-| PDF parsing | `pdf-parse` or `pdfjs-dist` |
-| Profile storage | Local JSON file (with versioning) |
-| State management | Zustand |
+| State management | Zustand 5 |
+| PDF parsing | pdf-parse |
+| DOCX generation | docx |
 | Build tooling | Vite + electron-vite |
+
+---
+
+## Prerequisites
+
+- **Node.js** v18 or later — [nodejs.org](https://nodejs.org)
+- **npm** v9 or later (bundled with Node.js)
+- **Anthropic API key** — [console.anthropic.com](https://console.anthropic.com)
+
+---
+
+## Setup
+
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/your-username/profile-builder.git
+cd profile-builder
+```
+
+**2. Install dependencies**
+
+```bash
+npm install
+```
+
+**3. Configure environment variables**
+
+Copy the example env file and add your API key:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in your values:
+
+```env
+ANTHROPIC_API_KEY=your_api_key_here
+```
+
+Optionally, if you want LinkedIn OAuth import:
+
+```env
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+```
+
+**4. Run the app**
+
+```bash
+npm run dev
+```
+
+This starts both the Vite dev server and the Electron window.
+
+---
+
+## Building for Production
+
+```bash
+# Compile and package
+npm run build
+
+# Build + package as installable app (dmg / exe / AppImage)
+npm run package
+```
+
+Output is placed in the `out/` directory.
 
 ---
 
@@ -53,74 +115,86 @@ With a filled profile and a target job listing, the AI generates:
 profile-builder/
 ├── src/
 │   ├── main/                    # Electron main process
-│   │   ├── index.ts             # App entry point
-│   │   └── ipc/                 # IPC handlers (file I/O, API calls)
+│   │   ├── index.ts             # App entry point & window setup
+│   │   └── ipc/index.ts         # IPC handlers (file I/O, agent calls)
+│   ├── preload/
+│   │   └── index.ts             # Context bridge — exposes API to renderer
 │   ├── renderer/                # React frontend
-│   │   ├── App.tsx
-│   │   ├── pages/
-│   │   │   ├── Interview.tsx    # Wizard + chat hybrid
-│   │   │   ├── JobMatch.tsx     # Job listing input + gap analysis
-│   │   │   └── Generate.tsx     # CV / cover letter output
-│   │   ├── components/
-│   │   │   ├── ChatPane.tsx     # Conversational AI panel
-│   │   │   ├── WizardSection.tsx
-│   │   │   └── ProfileViewer.tsx
-│   │   └── store/               # Zustand state
-│   ├── agents/                  # AI agent logic (prompt engineering)
+│   │   └── src/
+│   │       ├── App.tsx          # Root component & routing
+│   │       ├── pages/           # IntroPage, InterviewPage, ImportPage, JobMatchPage, GeneratePage
+│   │       ├── components/      # Chat, wizard, editor, document viewer, etc.
+│   │       └── store/index.ts   # Zustand global state
+│   ├── agents/                  # AI agent logic
 │   │   ├── interviewer.ts       # Profile-building agent
 │   │   ├── gap-analyser.ts      # Job listing comparison agent
-│   │   └── generator.ts        # CV / cover letter generation agent
+│   │   ├── generator.ts         # CV / cover letter generation
+│   │   ├── importer.ts          # PDF / LinkedIn document parsing
+│   │   ├── deduplicator.ts      # Profile deduplication
+│   │   ├── editor.ts            # Profile editing agent
+│   │   ├── overseer.ts          # Workflow orchestration
+│   │   └── researcher.ts        # Company research
 │   └── schema/
-│       └── profile.schema.ts    # TypeScript types for profile JSON
-├── profile.json                 # Your profile (gitignored)
+│       └── profile.schema.ts    # TypeScript types for profile.json
+├── profile.json                 # Your generated profile (gitignored)
+├── .env                         # API keys (gitignored)
+├── .env.example                 # Env variable template
 ├── AGENTS.md                    # Agent behaviour and prompt specs
-├── PROFILE_SCHEMA.md            # Full schema documentation
+├── PROFILE_SCHEMA.md            # Full profile.json schema documentation
 └── README.md
 ```
 
 ---
 
-## Getting Started
+## AI Agents
 
-> Setup instructions will be added once the initial scaffold is built.
+| Agent | Purpose |
+|---|---|
+| **Interviewer** | Guides profile building via structured conversation |
+| **Gap Analyser** | Compares a job listing to your profile and identifies gaps |
+| **Generator** | Produces a tailored CV and cover letter |
+| **Importer** | Extracts structured data from PDFs and LinkedIn exports |
+| **Deduplicator** | Cleans up duplicate entries in your profile |
+| **Editor** | Handles targeted profile field edits |
+| **Overseer** | Orchestrates multi-agent workflows |
+| **Researcher** | Researches companies for cover letter context |
 
-```bash
-# Install dependencies
-npm install
-
-# Run in development
-npm run dev
-
-# Build for production
-npm run build
-```
+See [AGENTS.md](AGENTS.md) for full specifications and prompt design.
 
 ---
 
 ## Profile JSON
 
-The core output is a single `profile.json`. See [PROFILE_SCHEMA.md](PROFILE_SCHEMA.md) for the full documented schema.
+Your profile is stored as a single `profile.json` at the project root (gitignored). It grows over time as you interview, import documents, and answer job-specific questions.
 
-At a high level it contains:
+Top-level keys: `meta`, `personal`, `summary`, `workExperience`, `education`, `certifications`, `skills`, `portfolio`, `languages`, `softSkills`, `references`, `extras`
 
-- Personal info & contact details
-- Work experience (with projects, achievements, technologies per role)
-- Education & qualifications
-- Certifications (with issuer, date, credential ID)
-- Skills (categorised, with self-assessed proficiency)
-- Portfolio projects (with links, tech stack, outcomes)
-- Soft skills & competencies
-- Languages
-- References
-- Meta (last updated, profile version, sources used to build it)
+See [PROFILE_SCHEMA.md](PROFILE_SCHEMA.md) for the full documented schema.
+
+---
+
+## Input Sources
+
+- **PDF upload** — CVs, certificates, transcripts
+- **LinkedIn data export** — JSON/CSV from LinkedIn's data export tool
+- **Plain text paste** — paste any text for the importer to extract from
+- **Manual entry** — type directly in the wizard sections
+
+---
+
+## Type Checking
+
+```bash
+npm run typecheck
+```
 
 ---
 
 ## Roadmap
 
-- [ ] Phase 1: Electron + React scaffold with Anthropic integration
-- [ ] Phase 2: Wizard sections for core profile areas
-- [ ] Phase 3: PDF and LinkedIn import parsing
-- [ ] Phase 4: Job listing input + gap analysis
-- [ ] Phase 5: CV and cover letter generation + export (PDF/DOCX)
+- [x] Phase 1: Electron + React scaffold with Anthropic integration
+- [x] Phase 2: Wizard sections for core profile areas
+- [x] Phase 3: PDF and LinkedIn import parsing
+- [x] Phase 4: Job listing input + gap analysis
+- [x] Phase 5: CV and cover letter generation + export (PDF/DOCX)
 - [ ] Phase 6: Profile versioning and history

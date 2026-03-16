@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { GapAnalysis, GeneratedDocs, OverseerResult } from '../../../schema/profile.schema'
 
-export type AppPage = 'intro' | 'interview' | 'job-match' | 'import'
+export type AppPage = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
 
 export interface JobSession {
   id: string
@@ -227,7 +227,7 @@ export const useStore = create<AppStore>()(persist((set) => ({
       answers: {},
       createdAt: Date.now(),
       generatedDocs: null,
-      generating: false
+      generating: false,
     }
     set((state) => ({ jobSessions: [...state.jobSessions, session], activeJobId: id }))
     return id

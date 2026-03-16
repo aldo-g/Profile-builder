@@ -95,7 +95,7 @@ export interface CompanyResearch {
 export interface GeneratedDocs {
   cvMarkdown: string
   coverLetterMarkdown: string
-  generatedAt: number
+generatedAt: number
   jobTitle: string
   company: string
   overseerResult?: OverseerResult

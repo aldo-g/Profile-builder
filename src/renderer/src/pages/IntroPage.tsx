@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
 
 interface IntroPageProps {
@@ -6,14 +6,50 @@ interface IntroPageProps {
 }
 
 export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Element {
+  const [step, setStep] = useState<'api-key' | 'import'>('api-key')
+  const [apiKey, setApiKey] = useState('')
+  const [apiKeyError, setApiKeyError] = useState('')
+  const [apiKeySaving, setApiKeySaving] = useState(false)
   const [cvFile, setCvFile] = useState<File | null>(null)
   const [isDraggingCv, setIsDraggingCv] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const cvInputRef = useRef<HTMLInputElement>(null)
+  const apiKeyInputRef = useRef<HTMLInputElement>(null)
   const setProfile = useStore((s) => s.setProfile)
 
+  // Load saved key on mount; if already set, skip to import step
+  useEffect(() => {
+    const api = (window as any).api
+    api.settings?.getApiKey().then((key: string | null) => {
+      if (key) {
+        setApiKey(key)
+        setStep('import')
+      }
+    }).catch(() => {})
+  }, [])
+
   const hasBaseline = cvFile !== null
+
+  async function handleSaveApiKey(): Promise<void> {
+    const trimmed = apiKey.trim()
+    if (!trimmed.startsWith('sk-ant-')) {
+      setApiKeyError('Key must start with sk-ant-')
+      apiKeyInputRef.current?.focus()
+      return
+    }
+    setApiKeyError('')
+    setApiKeySaving(true)
+    try {
+      const api = (window as any).api
+      await api.settings.setApiKey(trimmed)
+      setStep('import')
+    } catch (err: unknown) {
+      setApiKeyError(err instanceof Error ? err.message : 'Failed to save key. Please try again.')
+    } finally {
+      setApiKeySaving(false)
+    }
+  }
 
   function handleCvDrop(e: React.DragEvent<HTMLDivElement>): void {
     e.preventDefault()
@@ -126,67 +162,134 @@ export default function IntroPage({ onContinue }: IntroPageProps): React.JSX.Ele
       {/* Divider */}
       <div className="w-px bg-gray-200 dark:bg-gray-800 flex-shrink-0" />
 
-      {/* Right panel — imports */}
+      {/* Right panel */}
       <div className="flex-1 flex flex-col justify-center px-12 py-12 overflow-y-auto">
         <div className="max-w-sm w-full mx-auto">
 
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Give Claude a head start</h2>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Import your CV so Claude can pre-fill your history. Or skip and start fresh.
-            </p>
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 mb-8">
+            <StepDot active={step === 'api-key'} done={step === 'import'} label="1" />
+            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
+            <StepDot active={step === 'import'} done={false} label="2" />
           </div>
 
-          <div className="mb-8">
-            <DropZone
-              label="CV / résumé"
-              hint="PDF"
-              accept=".pdf"
-              file={cvFile}
-              isDragging={isDraggingCv}
-              inputRef={cvInputRef}
-              onDragOver={() => setIsDraggingCv(true)}
-              onDragLeave={() => setIsDraggingCv(false)}
-              onDrop={handleCvDrop}
-              onSelect={(f) => setCvFile(f)}
-              onClear={() => setCvFile(null)}
-              icon={
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              }
-            />
-          </div>
+          {step === 'api-key' ? (
+            <>
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Add your API key</h2>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Profile Builder uses the Claude API. Your key is stored locally and never leaves your device.
+                </p>
+              </div>
 
-          {/* Error */}
-          {importError && (
-            <div className="mb-4 px-3 py-2.5 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-900 rounded-lg">
-              <p className="text-xs text-red-500 dark:text-red-400">{importError}</p>
-            </div>
-          )}
+              <div className="mb-2">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                  Claude API key
+                </label>
+                <input
+                  ref={apiKeyInputRef}
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => { setApiKey(e.target.value); setApiKeyError('') }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveApiKey() }}
+                  placeholder="sk-ant-api03-…"
+                  autoFocus
+                  className="w-full px-3 py-2.5 rounded-lg text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                />
+                {apiKeyError && (
+                  <p className="mt-1.5 text-xs text-red-500">{apiKeyError}</p>
+                )}
+              </div>
 
-          {/* CTA */}
-          <div className="space-y-2.5">
-            <button
-              onClick={handleContinue}
-              disabled={isImporting}
-              className="w-full py-3 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {hasBaseline ? (
-                'Import and build my profile'
-              ) : (
-                'Start from scratch'
-              )}
-            </button>
-            {hasBaseline && !isImporting && (
               <button
-                onClick={onContinue}
-                className="w-full py-2.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-400 transition-colors"
+                type="button"
+                onClick={() => (window as any).api?.shell?.openExternal('https://console.anthropic.com/settings/keys')}
+                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-400 mb-8 transition-colors"
               >
-                Skip and start fresh
+                Get a key at console.anthropic.com
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
               </button>
-            )}
-          </div>
+
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 mb-8">
+                <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Saved to your local system keychain. Never sent to any server other than Anthropic's API.
+                </p>
+              </div>
+
+              <button
+                onClick={handleSaveApiKey}
+                disabled={apiKeySaving || !apiKey.trim()}
+                className="w-full py-3 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {apiKeySaving ? 'Saving…' : 'Continue'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Give Claude a head start</h2>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Import your CV so Claude can pre-fill your history. Or skip and start fresh.
+                </p>
+              </div>
+
+              <div className="mb-8">
+                <DropZone
+                  label="CV / résumé"
+                  hint="PDF"
+                  accept=".pdf"
+                  file={cvFile}
+                  isDragging={isDraggingCv}
+                  inputRef={cvInputRef}
+                  onDragOver={() => setIsDraggingCv(true)}
+                  onDragLeave={() => setIsDraggingCv(false)}
+                  onDrop={handleCvDrop}
+                  onSelect={(f) => setCvFile(f)}
+                  onClear={() => setCvFile(null)}
+                  icon={
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  }
+                />
+              </div>
+
+              {importError && (
+                <div className="mb-4 px-3 py-2.5 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-900 rounded-lg">
+                  <p className="text-xs text-red-500 dark:text-red-400">{importError}</p>
+                </div>
+              )}
+
+              <div className="space-y-2.5">
+                <button
+                  onClick={handleContinue}
+                  disabled={isImporting}
+                  className="w-full py-3 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {hasBaseline ? 'Import and build my profile' : 'Start from scratch'}
+                </button>
+                {hasBaseline && !isImporting && (
+                  <button
+                    onClick={onContinue}
+                    className="w-full py-2.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-400 transition-colors"
+                  >
+                    Skip and start fresh
+                  </button>
+                )}
+                <button
+                  onClick={() => setStep('api-key')}
+                  className="w-full py-2 rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+                >
+                  ← Change API key
+                </button>
+              </div>
+            </>
+          )}
 
         </div>
       </div>
@@ -266,6 +369,24 @@ function DropZone({ label, hint, accept, file, isDragging, inputRef, onDragOver,
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }): React.JSX.Element {
+  return (
+    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition-colors ${
+      done
+        ? 'bg-green-500 text-white'
+        : active
+        ? 'bg-blue-600 text-white'
+        : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
+    }`}>
+      {done ? (
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      ) : label}
     </div>
   )
 }

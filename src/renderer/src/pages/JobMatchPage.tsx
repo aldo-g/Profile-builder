@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
-import type { GapAnalysis, GeneratedDocs } from '../../../schema/profile.schema'
+import type { GapAnalysis } from '../../../schema/profile.schema'
 import { JobListSidebar } from '../components/JobListSidebar'
 import GapSidebar from '../components/GapSidebar'
 import { GapQuestionList } from '../components/GapQuestionList'
-import DocumentViewer from '../components/DocumentViewer'
 
 export default function JobMatchPage(): React.JSX.Element {
   const {
     setProfile,
+    profile,
+    setPage,
     jobSessions,
     activeJobId,
     createJobSession,
@@ -16,8 +17,6 @@ export default function JobMatchPage(): React.JSX.Element {
     setActiveJobId,
     updateJobSession
   } = useStore()
-
-  const { profile } = useStore()
 
   const activeJob = jobSessions.find(j => j.id === activeJobId) ?? null
 
@@ -33,22 +32,7 @@ export default function JobMatchPage(): React.JSX.Element {
   const [proposedUpdates, setProposedUpdates] = useState<Record<string, unknown> | null>(null)
   const [agentMessage, setAgentMessage] = useState<string | null>(null)
 
-  // Generation state
-  const [generateStatus, setGenerateStatus] = useState<'idle' | 'generating' | 'done' | 'error'>('idle')
-  const [generateError, setGenerateError] = useState('')
-  const [streamingText, setStreamingText] = useState('')
   const [showGapWarning, setShowGapWarning] = useState(false)
-  const streamEndRef = useRef<HTMLDivElement>(null)
-  const docsRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (activeJob?.generatedDocs) setGenerateStatus('done')
-    else setGenerateStatus('idle')
-  }, [activeJob?.id])
-
-  useEffect(() => {
-    streamEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [streamingText])
 
   function showToast(message: string): void {
     setToast(message)
@@ -182,96 +166,13 @@ export default function JobMatchPage(): React.JSX.Element {
     setAnswerValue('')
   }
 
-  async function startGenerate(): Promise<void> {
-    if (!activeJob?.analysis) return
-    setShowGapWarning(false)
-    setGenerateStatus('generating')
-    setStreamingText('')
-    setGenerateError('')
-
-    const api = (window as any).api
-    let cvTemplateText = ''
-    let coverLetterTemplateText: string | undefined
-    try {
-      const cvResult = await api.templates.read({ type: 'cv' })
-      cvTemplateText = cvResult.text
-      try {
-        const clResult = await api.templates.read({ type: 'coverLetter' })
-        coverLetterTemplateText = clResult.text
-      } catch { /* no cover letter template — optional */ }
-    } catch (err: unknown) {
-      setGenerateError(err instanceof Error ? err.message : 'Failed to read template.')
-      setGenerateStatus('error')
-      return
-    }
-
-    const removeStream = api.generate.onStream((chunk: string) => {
-      setStreamingText(prev => prev + chunk)
-    })
-    const removeDone = api.generate.onDone((result: unknown) => {
-      removeStream(); removeDone(); removeGenError()
-      const docs = result as GeneratedDocs
-      updateJobSession(activeJob.id, { generatedDocs: docs, generating: false })
-      setGenerateStatus('done')
-      setStreamingText('')
-      setTimeout(() => docsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-    })
-    const removeGenError = api.generate.onError((payload: { error: string }) => {
-      removeStream(); removeDone(); removeGenError()
-      setGenerateError(payload.error)
-      setGenerateStatus('error')
-      updateJobSession(activeJob.id, { generating: false })
-    })
-
-    updateJobSession(activeJob.id, { generating: true })
-
-    const gapAnswers: Record<string, string> = {}
-    if (activeJob.answers && activeJob.analysis) {
-      activeJob.analysis.missingSkills.forEach((skill: string, i: number) => {
-        if (activeJob.answers[i]) gapAnswers[skill] = activeJob.answers[i]
-      })
-    }
-
-    await api.generate.docs({
-      profile,
-      analysis: activeJob.analysis,
-      cvTemplateText,
-      coverLetterTemplateText,
-      gapAnswers: Object.keys(gapAnswers).length > 0 ? gapAnswers : undefined
-    })
-  }
-
   function handleGenerateClick(cards: Array<{ skill: string; question: string }>, answeredSet: Set<number>, skippedSet: Set<number>): void {
     const unanswered = cards.filter((_, i) => !answeredSet.has(i) && !skippedSet.has(i)).length
     if (unanswered > 0) {
       setShowGapWarning(true)
     } else {
-      startGenerate()
+      setPage('generate')
     }
-  }
-
-  function handleEdit(tab: 'cv' | 'cover-letter', markdown: string): void {
-    if (!activeJob?.generatedDocs) return
-    const updated = tab === 'cv'
-      ? { ...activeJob.generatedDocs, cvMarkdown: markdown }
-      : { ...activeJob.generatedDocs, coverLetterMarkdown: markdown }
-    updateJobSession(activeJob.id, { generatedDocs: updated })
-  }
-
-  async function handleExportPdf(tab: 'cv' | 'cover-letter', markdown: string): Promise<void> {
-    if (!activeJob?.generatedDocs) return
-    const api = (window as any).api
-    const company = activeJob.generatedDocs.company || activeJob.analysis?.company || 'application'
-    const filename = tab === 'cv' ? `CV - ${company}.pdf` : `Cover Letter - ${company}.pdf`
-    await api.generate.pdf({ markdown, filename })
-  }
-
-  async function handleExportDocx(tab: 'cv' | 'cover-letter', markdown: string): Promise<void> {
-    if (!activeJob?.generatedDocs) return
-    const api = (window as any).api
-    const company = activeJob.generatedDocs.company || activeJob.analysis?.company || 'application'
-    const filename = tab === 'cv' ? `CV - ${company}.docx` : `Cover Letter - ${company}.docx`
-    await api.generate.docx({ markdown, filename })
   }
 
   // ── No active job — empty state ─────────────────────────────────────────────
@@ -308,7 +209,7 @@ export default function JobMatchPage(): React.JSX.Element {
   // ── Input phase (no analysis yet) ──────────────────────────────────────────
   if (!activeJob.analysis) {
     return (
-      <div className="flex h-full">
+      <div className="flex h-full relative">
         <JobListSidebar
           sessions={jobSessions}
           activeJobId={activeJobId}
@@ -335,21 +236,15 @@ export default function JobMatchPage(): React.JSX.Element {
               <button
                 onClick={() => handleAnalyse(activeJob.id)}
                 disabled={activeJob.analysing || !activeJob.jobText.trim()}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
               >
-                {activeJob.analysing ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Analysing…
-                  </>
-                ) : 'Analyse job listing'}
+                Analyse job listing
               </button>
             </div>
           </div>
         </div>
+
+        {activeJob.analysing && <AnalysingOverlay />}
       </div>
     )
   }
@@ -419,9 +314,33 @@ export default function JobMatchPage(): React.JSX.Element {
       {/* Right: question list + generate */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <div className="px-8 py-8 max-w-2xl mx-auto w-full">
+          {/* Header with job title + progress */}
+          <div className="mb-6">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
+                  {activeJob.analysis!.jobTitle || 'Job Match'}
+                </h2>
+                {activeJob.analysis!.company && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{activeJob.analysis!.company}</p>
+                )}
+              </div>
+              <ScorePill score={activeJob.analysis!.score} />
+            </div>
+            {cards.length > 0 && (
+              <GapProgressBar total={cards.length} answered={answeredSet.size} skipped={skippedSet.size} />
+            )}
+          </div>
+
           {cards.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-gray-400 dark:text-gray-500 text-sm">No missing skills identified — strong match!</p>
+            <div className="text-center py-16 rounded-2xl border border-green-200 dark:border-green-800/50 bg-green-50 dark:bg-green-900/10">
+              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-500/20 border border-green-300 dark:border-green-500/30 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-1">Strong match</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">No skill gaps identified — you're well-positioned for this role.</p>
             </div>
           ) : (
             <GapQuestionList
@@ -464,62 +383,31 @@ export default function JobMatchPage(): React.JSX.Element {
           )}
 
           {/* Generate button */}
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-800">
-            <div className="flex items-center justify-between mb-2">
+          <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Generate documents</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Ready to generate?</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {answeredSet.size} of {cards.length} gaps answered
+                  {activeJob.generatedDocs && ' · docs ready'}
                 </p>
               </div>
               <button
                 onClick={() => handleGenerateClick(cards, answeredSet, skippedSet)}
-                disabled={generateStatus === 'generating'}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
               >
-                {generateStatus === 'generating' ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Generating…
-                  </>
-                ) : activeJob.generatedDocs ? 'Regenerate' : 'Generate CV & Cover Letter'}
+                {activeJob.generatedDocs ? 'View / Regenerate' : 'Generate CV & Cover Letter'}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </button>
             </div>
-
-            {/* Streaming preview */}
-            {generateStatus === 'generating' && (
-              <div className="mt-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 max-h-32 overflow-y-auto">
-                <p className="text-xs text-gray-400 mb-1">Claude is writing…</p>
-                <pre className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap font-mono">{streamingText || ' '}</pre>
-                <div ref={streamEndRef} />
-              </div>
-            )}
-
-            {/* Error */}
-            {generateStatus === 'error' && generateError && (
-              <div className="mt-3 px-3 py-2.5 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-lg">
-                <p className="text-xs text-red-500 dark:text-red-400">{generateError}</p>
-              </div>
-            )}
           </div>
-
-          {/* Inline document viewer */}
-          {activeJob.generatedDocs && (
-            <div ref={docsRef} className="mt-6">
-              <DocumentViewer
-                docs={activeJob.generatedDocs}
-                onExportPdf={handleExportPdf}
-                onExportDocx={handleExportDocx}
-                onEdit={handleEdit}
-                maxHeight="max-h-[600px]"
-              />
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Submitting answer overlay */}
+      {submittingIndex !== null && !proposedUpdates && <SubmittingOverlay />}
 
       {/* Profile update modal */}
       {proposedUpdates && (
@@ -609,7 +497,7 @@ export default function JobMatchPage(): React.JSX.Element {
                 Go back
               </button>
               <button
-                onClick={startGenerate}
+                onClick={() => { setShowGapWarning(false); setPage('generate') }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors"
               >
                 Generate anyway
@@ -618,6 +506,171 @@ export default function JobMatchPage(): React.JSX.Element {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Submitting answer overlay ──────────────────────────────────────────────────
+
+function SubmittingOverlay(): React.JSX.Element {
+  const [dot, setDot] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => setDot(d => (d + 1) % 3), 500)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/80 dark:bg-gray-950/85 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-center mb-6">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
+            <div className="absolute inset-1 rounded-full bg-blue-500/30 animate-ping [animation-delay:150ms]" />
+            <div className="relative w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center">
+              <svg className="w-7 h-7 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-center mb-1">Processing your answer</h3>
+        <p className="text-xs text-gray-400 text-center">
+          Claude is reviewing your response{'.'.repeat(dot + 1)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Analysing overlay ──────────────────────────────────────────────────────────
+
+function AnalysingOverlay(): React.JSX.Element {
+  const [step, setStep] = useState(0)
+  const steps = [
+    { label: 'Reading job listing…', icon: '📄' },
+    { label: 'Comparing to your profile…', icon: '🔍' },
+    { label: 'Scoring your fit…', icon: '📊' },
+    { label: 'Generating gap questions…', icon: '✍️' },
+  ]
+
+  useEffect(() => {
+    const timings = [0, 1800, 3800, 5600]
+    const timers = timings.map((delay, i) =>
+      setTimeout(() => setStep(i), delay)
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [])
+
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/80 dark:bg-gray-950/85 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 shadow-2xl w-full max-w-sm mx-4">
+        {/* Animated pulse ring */}
+        <div className="flex items-center justify-center mb-6">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
+            <div className="absolute inset-1 rounded-full bg-blue-500/30 animate-ping [animation-delay:150ms]" />
+            <div className="relative w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center">
+              <svg className="w-7 h-7 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-center mb-1">Analysing job listing</h3>
+        <p className="text-xs text-gray-400 text-center mb-6">This takes a few seconds…</p>
+
+        {/* Step list */}
+        <div className="space-y-3">
+          {steps.map((s, i) => {
+            const done = i < step
+            const active = i === step
+            return (
+              <div key={i} className={`flex items-center gap-3 transition-all duration-300 ${i > step ? 'opacity-30' : ''}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-sm transition-all duration-300 ${
+                  done ? 'bg-green-100 dark:bg-green-500/20'
+                  : active ? 'bg-blue-100 dark:bg-blue-500/20'
+                  : 'bg-gray-100 dark:bg-gray-800'
+                }`}>
+                  {done ? (
+                    <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span>{s.icon}</span>
+                  )}
+                </div>
+                <span className={`text-xs transition-all duration-300 ${
+                  done ? 'text-gray-400 dark:text-gray-500 line-through'
+                  : active ? 'text-gray-900 dark:text-white font-medium'
+                  : 'text-gray-400 dark:text-gray-500'
+                }`}>
+                  {s.label}
+                </span>
+                {active && (
+                  <div className="ml-auto flex gap-0.5">
+                    {[0, 1, 2].map(d => (
+                      <div key={d} className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: `${d * 150}ms` }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Score pill (compact, for the main header) ──────────────────────────────────
+
+function ScorePill({ score }: { score: number }): React.JSX.Element {
+  const { bg, text, label } = score >= 70
+    ? { bg: 'bg-green-100 dark:bg-green-500/15 border-green-300 dark:border-green-600/40', text: 'text-green-700 dark:text-green-300', label: 'Strong match' }
+    : score >= 40
+    ? { bg: 'bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-600/40', text: 'text-amber-700 dark:text-amber-300', label: 'Partial match' }
+    : { bg: 'bg-red-50 dark:bg-red-500/10 border-red-300 dark:border-red-600/40', text: 'text-red-600 dark:text-red-400', label: 'Weak match' }
+
+  return (
+    <div className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full border ${bg}`}>
+      <span className={`text-xl font-bold leading-none ${text}`}>{score}</span>
+      <div>
+        <p className={`text-xs font-medium leading-none ${text}`}>/100</p>
+        <p className={`text-xs leading-none mt-0.5 ${text} opacity-70`}>{label}</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Gap progress bar ───────────────────────────────────────────────────────────
+
+function GapProgressBar({ total, answered, skipped }: { total: number; answered: number; skipped: number }): React.JSX.Element {
+  const answeredPct = (answered / total) * 100
+  const skippedPct = (skipped / total) * 100
+  const remaining = total - answered - skipped
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          {answered} answered · {skipped} skipped · {remaining} remaining
+        </span>
+        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{total} gaps</span>
+      </div>
+      <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden flex">
+        <div
+          className="h-full bg-green-500 transition-all duration-500 rounded-l-full"
+          style={{ width: `${answeredPct}%` }}
+        />
+        <div
+          className="h-full bg-gray-300 dark:bg-gray-600 transition-all duration-500"
+          style={{ width: `${skippedPct}%` }}
+        />
+      </div>
     </div>
   )
 }

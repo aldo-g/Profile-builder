@@ -1,8 +1,9 @@
-import { ipcMain, app, dialog, BrowserWindow } from 'electron'
+import { ipcMain, app, dialog, BrowserWindow, shell } from 'electron'
 import { join, extname } from 'path'
 import { readFileSync, existsSync, unlinkSync, writeFileSync, copyFileSync } from 'fs'
 import { createRequire } from 'module'
 import { readProfile, writeProfile } from './profile'
+import { getApiKey, setApiKey } from '../settings'
 import { runInterviewer, generateSectionQuestions } from '../../agents/interviewer'
 import { runImporter } from '../../agents/importer'
 import { deduplicateProfile, cleanProfile } from '../../agents/deduplicator'
@@ -44,6 +45,19 @@ function deepMergeProfile(
   }
   return result
 }
+
+// ── Shell ─────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('shell:openExternal', (_event, url: string) => {
+  shell.openExternal(url)
+})
+
+// ── API key management ────────────────────────────────────────────────────────
+
+ipcMain.handle('settings:getApiKey', () => getApiKey())
+ipcMain.handle('settings:setApiKey', (_event, key: string) => {
+  setApiKey(key)
+})
 
 // LinkedIn OAuth — opens system browser, spins up local callback server, returns userinfo
 ipcMain.handle('linkedin:oauth', async () => {
@@ -338,6 +352,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
     send('generate:error', { error: errorMessage })
   }
 })
+
 
 function markdownToHtml(md: string): string {
   let html = md

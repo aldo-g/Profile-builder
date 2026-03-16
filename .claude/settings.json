@@ -36,6 +36,9 @@
       "Bash(node --input-type=module:*)",
       "Bash(/Users/alastairgrant/Personal/Code_Projects/profile-builder/node_modules/.bin/electron --trace-uncaught out/main/index.js)",
       "Bash(node -e \"const path = require\\(''path''\\); console.log\\(path.relative\\(''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/renderer/src/pages'', ''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/schema/profile.schema.ts''\\)\\)\")"
+    ],
+    "additionalDirectories": [
+      "/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/agents"
     ]
   }
 }

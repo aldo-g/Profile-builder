@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function GeneratePage({ templateStatus }: Props): React.JSX.Element {
-  const { profile, jobSessions, activeJobId, updateJobSession } = useStore()
+  const { profile, jobSessions, activeJobId, updateJobSession, setPage } = useStore()
   const activeJob = jobSessions.find(j => j.id === activeJobId) ?? null
 
   const [status, setStatus] = useState<GenerateStatus>('idle')
@@ -24,8 +24,12 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
   const streamEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (activeJob?.generatedDocs) setStatus('done')
-  }, [activeJob?.id])
+    if (activeJob?.generatedDocs) {
+      setStatus('done')
+    } else if (activeJob?.analysis && templateStatus.cv) {
+      handleGenerate()
+    }
+  }, [activeJob?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -164,7 +168,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
 
   async function handleExportPdf(tab: 'cv' | 'cover-letter', markdown: string): Promise<void> {
     if (!activeJob?.generatedDocs) return
-const api = (window as any).api
+    const api = (window as any).api
     const company = activeJob.generatedDocs.company || activeJob.analysis?.company || 'application'
     const filename = tab === 'cv' ? `CV - ${company}.pdf` : `Cover Letter - ${company}.pdf`
     await api.generate.pdf({ markdown, filename })
@@ -186,11 +190,21 @@ const api = (window as any).api
   const overseerResult = activeJob?.overseerResult ?? null
 
   return (
-    <div className="flex flex-col h-full overflow-hidden px-8 py-6 gap-4">
+    <div className="relative flex flex-col h-full overflow-hidden px-8 py-6 gap-4">
 
       {/* Header row */}
       <div className="flex items-center justify-between shrink-0">
-        <div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setPage('job-match')}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Job Match
+          </button>
+          <span className="text-gray-300 dark:text-gray-700 text-xs">/</span>
           {activeJob?.analysis ? (
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
               {activeJob.analysis.jobTitle}

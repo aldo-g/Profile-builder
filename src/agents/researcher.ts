@@ -52,22 +52,59 @@ export async function runResearcher(input: ResearcherInput): Promise<CompanyRese
 
   const systemPrompt = RESEARCHER_SYSTEM_PROMPT.replace('{COMPANY_NAME}', input.company)
 
-  // Use beta.messages for web_search support
-  const response = await (client.beta.messages as any).create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    system: systemPrompt,
-    tools: [
-      { type: 'web_search_20250305', name: 'web_search' },
-      REPORT_COMPANY_TOOL
-    ],
-    messages: [{ role: 'user', content: `Research this company for me: ${input.company}` }],
-    betas: ['web_search_2025_03_05']
-  })
+  const messages: Anthropic.MessageParam[] = [
+    { role: 'user', content: `Research this company for me: ${input.company}` }
+  ]
 
-  for (const block of response.content) {
-    if (block.type === 'tool_use' && block.name === 'report_company') {
-      return block.input as CompanyResearch
+  const tools: any[] = [
+    { type: 'web_search_20250305', name: 'web_search' },
+    REPORT_COMPANY_TOOL
+  ]
+
+  // Agentic loop: web_search is a server-side tool — the API executes searches automatically.
+  // We need to loop, passing back assistant content + tool results until report_company is called.
+  for (let turn = 0; turn < 10; turn++) {
+    const response = await (client.beta.messages as any).create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: systemPrompt,
+      tools,
+      messages,
+      betas: ['web_search_2025_03_05']
+    })
+
+    // Stream any text chunks to the UI
+    for (const block of response.content) {
+      if (block.type === 'text' && block.text) {
+        input.onChunk(block.text)
+      }
+    }
+
+    // Check for report_company in this response
+    for (const block of response.content) {
+      if (block.type === 'tool_use' && block.name === 'report_company') {
+        return block.input as CompanyResearch
+      }
+    }
+
+    // If no more tool use, we're done
+    if (response.stop_reason === 'end_turn') {
+      break
+    }
+
+    // Add assistant turn to history
+    messages.push({ role: 'assistant', content: response.content })
+
+    // Provide tool results for any non-web-search tool uses
+    const toolResults: Anthropic.ToolResultBlockParam[] = response.content
+      .filter((b: any) => b.type === 'tool_use' && b.name !== 'web_search')
+      .map((b: any) => ({ type: 'tool_result' as const, tool_use_id: b.id, content: '' }))
+
+    if (toolResults.length > 0) {
+      messages.push({ role: 'user', content: toolResults })
+    } else {
+      // web_search tool use — results are embedded in response content; just continue
+      messages.push({ role: 'user', content: [{ type: 'text', text: 'Continue with your research.' }] })
     }
   }
 

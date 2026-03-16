@@ -5,6 +5,7 @@ config({ path: join(process.cwd(), '.env') })
 import { app, shell, BrowserWindow } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import './ipc'
+import { loadSavedApiKey } from './settings'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -38,6 +39,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  loadSavedApiKey()
   electronApp.setAppUserModelId('dev.alastairgrant.profile-builder')
 
   app.on('browser-window-created', (_, window) => {
