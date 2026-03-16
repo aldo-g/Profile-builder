@@ -38,7 +38,19 @@
       "Bash(node -e \"const path = require\\(''path''\\); console.log\\(path.relative\\(''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/renderer/src/pages'', ''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/schema/profile.schema.ts''\\)\\)\")",
       "Bash(git -C /Users/alastairgrant/Personal/Code_Projects/profile-builder diff src/renderer/src/App.tsx)",
       "Bash(grep -n \"ANTHROPIC_API_KEY\\\\|process\\\\.env\" /Users/alastairgrant/Personal/Code_Projects/profile-builder/src/agents/*.ts)",
-      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\(json.dumps\\(p.get\\(''''personal'''', {}\\), indent=2\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\(json.dumps\\(p.get\\(''''personal'''', {}\\), indent=2\\)\\)\")",
+      "Bash(git stash:*)",
+      "Bash(npm run:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''electron-vite:'''', d[''''packages''''][''''node_modules/electron-vite''''][''''version'''']\\); print\\(''''vite:'''', d[''''packages''''][''''node_modules/vite''''][''''version'''']\\)\")",
+      "Bash(npm info:*)",
+      "Bash(python3 -c \"import json,sys; vs=json.load\\(sys.stdin\\); print\\(''''\\\\n''''.join\\(vs[-10:]\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; vs=json.load\\(sys.stdin\\); [print\\(v\\) for v in vs if v.startswith\\(''''2.''''\\)]\")",
+      "Bash(npm install:*)",
+      "Bash(grep -l \"ESMStaticImportRe\\\\|CommonJS Shims\" /Users/alastairgrant/Personal/Code_Projects/profile-builder/node_modules/electron-vite/dist/chunks/*.mjs)",
+      "Bash(grep -l \"ESMStaticImportRe\\\\|CommonJS Shims\" /Users/alastairgrant/Personal/Code_Projects/profile-builder/node_modules/electron-vite/dist/chunks/*.js)",
+      "Bash(node -e \"import\\(''''pdf-parse''''\\).then\\(m => console.log\\(typeof m.default\\)\\)\")",
+      "Bash(npx rollup:*)",
+      "Bash(npm uninstall:*)"
     ],
     "additionalDirectories": [
       "/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/agents"

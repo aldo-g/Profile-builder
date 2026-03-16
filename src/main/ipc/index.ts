@@ -1,7 +1,8 @@
 import { ipcMain, app, dialog, BrowserWindow, shell } from 'electron'
 import { join, extname } from 'path'
 import { readFileSync, existsSync, unlinkSync, writeFileSync, copyFileSync } from 'fs'
-import { createRequire } from 'module'
+import pdfParse from 'pdf-parse/lib/pdf-parse.js'
+import mammoth from 'mammoth'
 import { readProfile, writeProfile } from './profile'
 import { saveSnapshot, listSnapshots, loadSnapshot, deleteSnapshot } from './versions'
 import { getApiKey, setApiKey } from '../settings'
@@ -17,8 +18,6 @@ import type { GapAnalysis, OverseerResult } from '../../schema/profile.schema'
 import { parseLinkedInZip, linkedInDataToText } from '../linkedin-parser'
 import { linkedInOAuth } from '../linkedin-oauth'
 import { markdownToHtml } from '../markdownToHtml'
-
-const require = createRequire(import.meta.url)
 
 // Deep merge profileUpdates into the current saved profile.
 // Arrays are replaced at the top level (the agent returns the full updated array),
@@ -124,7 +123,6 @@ ipcMain.handle('import:baseline', async (_event, payload: { cvPath?: string; lin
   let linkedinText: string | undefined
 
   if (payload.cvPath) {
-    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
     const buffer = readFileSync(payload.cvPath)
     const parsed = await pdfParse(buffer)
     cvText = parsed.text
@@ -286,14 +284,10 @@ ipcMain.handle('template:read', async (_event, payload: { type: 'cv' | 'coverLet
   if (!foundPath) throw new Error(`Template not found: ${baseName}`)
 
   if (foundExt === '.docx' || foundExt === '.doc') {
-    const mammoth = require('mammoth') as {
-      extractRawText: (opts: { path: string }) => Promise<{ value: string }>
-    }
     const result = await mammoth.extractRawText({ path: foundPath })
     return { text: result.value }
   } else {
     // PDF
-    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
     const buffer = readFileSync(foundPath)
     const parsed = await pdfParse(buffer)
     return { text: parsed.text }
