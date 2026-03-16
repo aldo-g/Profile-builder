@@ -13,7 +13,7 @@ export function JobListSidebar({
   embedded?: boolean
 }): React.JSX.Element {
   return (
-    <div className={embedded ? 'border-b border-gray-200 dark:border-gray-800' : 'border-r border-gray-200 dark:border-gray-800 w-72 flex-shrink-0 h-full overflow-y-auto'}>
+    <div className={embedded ? 'border-b border-gray-200 dark:border-gray-800' : 'border-r border-gray-200 dark:border-gray-800 w-72 flex-shrink-0'}>
       <div className="px-4 py-3 flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Jobs</span>
         <button
@@ -23,7 +23,7 @@ export function JobListSidebar({
           + New
         </button>
       </div>
-      <div className="pb-2">
+      <div className="pb-2 max-h-[260px] overflow-y-auto">
         {sessions.length === 0 && (
           <p className="px-4 py-2 text-xs text-gray-400">No saved jobs yet</p>
         )}

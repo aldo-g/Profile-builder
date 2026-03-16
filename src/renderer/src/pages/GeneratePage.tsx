@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
-import type { GeneratedDocs, CompanyResearch } from '../../../schema/profile.schema'
+import type { GeneratedDocs } from '../../../schema/profile.schema'
 import DocumentViewer from '../components/DocumentViewer'
 
-type GenerateStatus = 'idle' | 'pre-generate' | 'researching' | 'confirming' | 'generating' | 'done' | 'error'
+type GenerateStatus = 'idle' | 'pre-generate' | 'generating' | 'done' | 'error'
 type GenerationPhase = 'writing' | 'reviewing' | 'refining'
 
 // ─── Generation pipeline config ───────────────────────────────────────────────
@@ -136,42 +136,6 @@ function GenerationProgress({ phase, streamingText, hasRefining }: {
   )
 }
 
-// ─── Research progress panel ──────────────────────────────────────────────────
-
-function ResearchProgress({ streamingText, company }: { streamingText: string; company: string }): React.JSX.Element {
-  const endRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [streamingText])
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4 py-6">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-          <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-            <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-          </svg>
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-medium text-gray-900 dark:text-white">Researching {company}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Gathering company context to personalise your application</p>
-        </div>
-      </div>
-      <div className="w-full max-w-md">
-        <p className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
-          Live output
-        </p>
-        <div className="bg-gray-950 rounded-lg px-4 py-3 h-28 overflow-hidden relative font-mono text-xs text-gray-400 leading-relaxed">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-gray-950 pointer-events-none z-10" />
-          <pre className="whitespace-pre-wrap break-words">{streamingText.slice(-400) || ' '}<span className="animate-pulse text-blue-400">▌</span></pre>
-          <div ref={endRef} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface ApplicationOverrides {
@@ -193,9 +157,6 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
   const [streamingText, setStreamingText] = useState('')
   const [phase, setPhase] = useState<GenerationPhase>('writing')
   const [hasRefining, setHasRefining] = useState(false)
-  const [researchResult, setResearchResult] = useState<CompanyResearch | null>(null)
-  const [showCompanyEdit, setShowCompanyEdit] = useState(false)
-  const [correctedCompany, setCorrectedCompany] = useState('')
   const [overrides, setOverrides] = useState<ApplicationOverrides | null>(null)
 
   function defaultOverrides(): ApplicationOverrides {
@@ -231,44 +192,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
     if (!activeJob?.analysis || !templateStatus.cv) return
     setOverrides(confirmed)
     setError('')
-    setShowCompanyEdit(false)
-    setCorrectedCompany('')
-
-    const companyName = activeJob.analysis.company
-
-    // Skip research if we already have a cached summary
-    if (companyName && !activeJob.companySummary) {
-      await runResearch(companyName)
-      return
-    }
-
     await startGenerate(confirmed)
-  }
-
-  async function runResearch(company: string): Promise<void> {
-    setStatus('researching')
-    setStreamingText('')
-
-    const api = (window as any).api
-
-    const removeStream = api.research.onStream((chunk: string) => {
-      setStreamingText(prev => prev + chunk)
-    })
-    const removeDone = api.research.onDone((result: unknown) => {
-      removeStream(); removeDone(); removeError()
-      const research = result as CompanyResearch
-      if (activeJob) updateJobSession(activeJob.id, { companySummary: research.summary })
-      setResearchResult(research)
-      setStatus('confirming')
-    })
-    const removeError = api.research.onError((_payload: { error: string }) => {
-      removeStream(); removeDone(); removeError()
-      // Research failure is non-fatal — proceed without summary
-      setResearchResult(null)
-      setStatus('confirming')
-    })
-
-    await api.research.company({ company })
   }
 
   async function startGenerate(confirmedOverrides?: ApplicationOverrides): Promise<void> {
@@ -342,18 +266,6 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
     })
   }
 
-  async function handleReresearch(): Promise<void> {
-    const company = correctedCompany.trim() || activeJob?.analysis?.company
-    if (!company || !activeJob) return
-    // Update company name in analysis if corrected
-    if (correctedCompany.trim() && activeJob.analysis) {
-      updateJobSession(activeJob.id, {
-        analysis: { ...activeJob.analysis, company: correctedCompany.trim() },
-        companySummary: undefined
-      })
-    }
-    await runResearch(correctedCompany.trim() || company)
-  }
 
   function handleEdit(tab: 'cv' | 'cover-letter', markdown: string): void {
     if (!activeJob?.generatedDocs) return
@@ -379,9 +291,6 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
     await api.generate.docx({ markdown, filename })
   }
 
-  function openExternal(url: string): void {
-    ;(window as any).electron?.shell?.openExternal(url)
-  }
 
   const docs = activeJob?.generatedDocs ?? null
   const overseerResult = activeJob?.overseerResult ?? null
@@ -416,28 +325,20 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
 
         <button
           onClick={handleGenerate}
-          disabled={!activeJob?.analysis || !templateStatus.cv || status === 'researching' || status === 'generating'}
+          disabled={!activeJob?.analysis || !templateStatus.cv || status === 'generating'}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shrink-0"
         >
-          {(status === 'researching' || status === 'generating') ? (
+          {status === 'generating' ? (
             <>
               <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
-              {status === 'researching' ? 'Researching…' : 'Generating…'}
+              Generating…
             </>
           ) : docs ? 'Regenerate' : 'Generate'}
         </button>
       </div>
-
-      {/* Research in-progress panel */}
-      {status === 'researching' && (
-        <ResearchProgress
-          streamingText={streamingText}
-          company={activeJob?.analysis?.company ?? 'company'}
-        />
-      )}
 
       {/* Generation in-progress panel */}
       {status === 'generating' && (
@@ -486,7 +387,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
           onEdit={handleEdit}
         />
       ) : (
-        status !== 'researching' && status !== 'generating' && status !== 'confirming' && (
+        status !== 'generating' && (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-gray-400 dark:text-gray-600">
               {!activeJob?.analysis
@@ -509,101 +410,6 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
         />
       )}
 
-      {/* Company confirmation modal */}
-      {status === 'confirming' && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-              Is this the right company?
-            </p>
-
-            {researchResult ? (
-              <>
-                <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
-                  {researchResult.summary}
-                </p>
-
-                {researchResult.sources.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Sources</p>
-                    <ul className="space-y-1">
-                      {researchResult.sources.map((url, i) => (
-                        <li key={i}>
-                          <button
-                            onClick={() => openExternal(url)}
-                            className="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 underline break-all text-left"
-                          >
-                            {url}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="mb-5">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    researchResult.confidence === 'high'
-                      ? 'bg-green-100 dark:bg-green-900/60 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700'
-                      : researchResult.confidence === 'medium'
-                        ? 'bg-yellow-100 dark:bg-yellow-900/60 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600'
-                  }`}>
-                    {researchResult.confidence} confidence
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Could not retrieve company info — you can still proceed without it.
-              </p>
-            )}
-
-            {showCompanyEdit ? (
-              <div className="mb-4">
-                <input
-                  type="text"
-                  value={correctedCompany}
-                  onChange={e => setCorrectedCompany(e.target.value)}
-                  placeholder={activeJob?.analysis?.company ?? 'Company name'}
-                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-2"
-                  onKeyDown={e => { if (e.key === 'Enter') handleReresearch() }}
-                  autoFocus
-                />
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => { setShowCompanyEdit(false); setCorrectedCompany('') }}
-                    className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleReresearch}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
-                  >
-                    Research again
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowCompanyEdit(true)}
-                  className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg transition-colors"
-                >
-                  Wrong company
-                </button>
-                <button
-                  onClick={() => startGenerate(overrides ?? undefined)}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
-                >
-                  Yes, continue
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
