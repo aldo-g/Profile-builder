@@ -2,6 +2,12 @@
 
 A desktop application that AI-interviews you to build a comprehensive professional profile, then uses it to generate tailored CVs and cover letters for specific job listings — powered by Claude AI.
 
+## Download
+
+[Download for Mac (Apple Silicon)](https://github.com/aldo-g/Profile-builder/releases/latest)
+
+> Requires a Claude API key from [console.anthropic.com](https://console.anthropic.com)
+
 ---
 
 ## How It Works
