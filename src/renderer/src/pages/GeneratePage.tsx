@@ -3,7 +3,182 @@ import { useStore } from '../store'
 import type { GeneratedDocs, CompanyResearch } from '../../../schema/profile.schema'
 import DocumentViewer from '../components/DocumentViewer'
 
-type GenerateStatus = 'idle' | 'researching' | 'confirming' | 'generating' | 'done' | 'error'
+type GenerateStatus = 'idle' | 'pre-generate' | 'researching' | 'confirming' | 'generating' | 'done' | 'error'
+type GenerationPhase = 'writing' | 'reviewing' | 'refining'
+
+// ─── Generation pipeline config ───────────────────────────────────────────────
+
+const PIPELINE_STEPS: { phase: GenerationPhase; label: string; sublabel: string }[] = [
+  { phase: 'writing',   label: 'Writing documents', sublabel: 'Tailoring CV & cover letter to the role' },
+  { phase: 'reviewing', label: 'Quality review',    sublabel: 'Checking keyword coverage, tone & structure' },
+  { phase: 'refining',  label: 'Refining',          sublabel: 'Editing flagged sections to improve score' },
+]
+
+function WritingIcon(): React.JSX.Element {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+    </svg>
+  )
+}
+
+function ReviewIcon(): React.JSX.Element {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function RefineIcon(): React.JSX.Element {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+    </svg>
+  )
+}
+
+const PHASE_ICONS: Record<GenerationPhase, React.JSX.Element> = {
+  writing:   <WritingIcon />,
+  reviewing: <ReviewIcon />,
+  refining:  <RefineIcon />,
+}
+
+// ─── Stream preview ───────────────────────────────────────────────────────────
+
+function StreamPreview({ text }: { text: string }): React.JSX.Element {
+  const endRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [text])
+  const cleaned = text.replace(/\[(Overseer|Editor)[^\]]*\][^\n]*/g, '').trim()
+  const preview = cleaned.slice(-400)
+  return (
+    <div className="bg-gray-950 rounded-lg px-4 py-3 h-28 overflow-hidden relative font-mono text-xs text-gray-400 leading-relaxed">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-gray-950 pointer-events-none z-10" />
+      <pre className="whitespace-pre-wrap break-words">{preview}<span className="animate-pulse text-blue-400">▌</span></pre>
+      <div ref={endRef} />
+    </div>
+  )
+}
+
+// ─── Generation progress panel ────────────────────────────────────────────────
+
+function GenerationProgress({ phase, streamingText, hasRefining }: {
+  phase: GenerationPhase
+  streamingText: string
+  hasRefining: boolean
+}): React.JSX.Element {
+  const steps = hasRefining ? PIPELINE_STEPS : PIPELINE_STEPS.slice(0, 2)
+  const currentIdx = steps.findIndex(s => s.phase === phase)
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-10 px-4 py-6">
+      {/* Pipeline */}
+      <div className="flex items-start gap-0 w-full max-w-md">
+        {steps.map((step, i) => {
+          const isDone    = i < currentIdx
+          const isActive  = i === currentIdx
+          const isPending = i > currentIdx
+          const isLast    = i === steps.length - 1
+          return (
+            <React.Fragment key={step.phase}>
+              <div className="flex flex-col items-center gap-2.5 flex-1 min-w-0">
+                {/* Circle */}
+                <div className={`
+                  relative w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-500
+                  ${isDone    ? 'bg-green-500 border-green-500 text-white' : ''}
+                  ${isActive  ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/30' : ''}
+                  ${isPending ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600' : ''}
+                `}>
+                  {isDone ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  ) : isActive ? (
+                    <div className="relative">
+                      {PHASE_ICONS[step.phase]}
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-300 rounded-full animate-ping" />
+                    </div>
+                  ) : PHASE_ICONS[step.phase]}
+                </div>
+                {/* Label */}
+                <div className="text-center px-1">
+                  <p className={`text-xs font-medium transition-colors leading-tight ${
+                    isDone    ? 'text-green-600 dark:text-green-400' :
+                    isActive  ? 'text-blue-600 dark:text-blue-400' :
+                    'text-gray-400 dark:text-gray-600'
+                  }`}>{step.label}</p>
+                  {isActive && (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 leading-tight">{step.sublabel}</p>
+                  )}
+                </div>
+              </div>
+              {!isLast && (
+                <div className="flex-shrink-0 mt-6 w-8 flex items-center">
+                  <div className={`h-0.5 w-full transition-all duration-700 ${
+                    i < currentIdx ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700'
+                  }`} />
+                </div>
+              )}
+            </React.Fragment>
+          )
+        })}
+      </div>
+      {/* Stream */}
+      <div className="w-full max-w-md">
+        <p className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
+          Live output
+        </p>
+        <StreamPreview text={streamingText} />
+      </div>
+    </div>
+  )
+}
+
+// ─── Research progress panel ──────────────────────────────────────────────────
+
+function ResearchProgress({ streamingText, company }: { streamingText: string; company: string }): React.JSX.Element {
+  const endRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [streamingText])
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4 py-6">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+          <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+            <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">Researching {company}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Gathering company context to personalise your application</p>
+        </div>
+      </div>
+      <div className="w-full max-w-md">
+        <p className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
+          Live output
+        </p>
+        <div className="bg-gray-950 rounded-lg px-4 py-3 h-28 overflow-hidden relative font-mono text-xs text-gray-400 leading-relaxed">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-gray-950 pointer-events-none z-10" />
+          <pre className="whitespace-pre-wrap break-words">{streamingText.slice(-400) || ' '}<span className="animate-pulse text-blue-400">▌</span></pre>
+          <div ref={endRef} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ApplicationOverrides {
+  location: string
+  phone: string
+  hasRightToWork: boolean
+}
 
 interface Props {
   templateStatus: { cv: boolean; coverLetter: boolean }
@@ -16,27 +191,45 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
   const [status, setStatus] = useState<GenerateStatus>('idle')
   const [error, setError] = useState('')
   const [streamingText, setStreamingText] = useState('')
-  const [phaseLabel, setPhaseLabel] = useState('Claude is writing…')
+  const [phase, setPhase] = useState<GenerationPhase>('writing')
+  const [hasRefining, setHasRefining] = useState(false)
   const [researchResult, setResearchResult] = useState<CompanyResearch | null>(null)
   const [showCompanyEdit, setShowCompanyEdit] = useState(false)
   const [correctedCompany, setCorrectedCompany] = useState('')
+  const [overrides, setOverrides] = useState<ApplicationOverrides | null>(null)
 
-  const streamEndRef = useRef<HTMLDivElement>(null)
+  function defaultOverrides(): ApplicationOverrides {
+    const personal = profile?.personal as Record<string, unknown> | undefined
+    const profileLocation = personal?.location as Record<string, unknown> | undefined
+    const city = (profileLocation?.city as string) ?? ''
+    const country = (profileLocation?.country as string) ?? ''
+    const profileLocationStr = [city, country].filter(Boolean).join(', ')
+    const jobLocation = activeJob?.analysis?.jobLocation ?? ''
+    return {
+      location: jobLocation || profileLocationStr,
+      phone: (personal?.phone as string) ?? '',
+      hasRightToWork: false,
+    }
+  }
 
   useEffect(() => {
     if (activeJob?.generatedDocs) {
       setStatus('done')
     } else if (activeJob?.analysis && templateStatus.cv) {
-      handleGenerate()
+      setOverrides(defaultOverrides())
+      setStatus('pre-generate')
     }
   }, [activeJob?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    streamEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [streamingText])
-
   async function handleGenerate(): Promise<void> {
     if (!activeJob?.analysis || !templateStatus.cv) return
+    setOverrides(defaultOverrides())
+    setStatus('pre-generate')
+  }
+
+  async function handleConfirmGenerate(confirmed: ApplicationOverrides): Promise<void> {
+    if (!activeJob?.analysis || !templateStatus.cv) return
+    setOverrides(confirmed)
     setError('')
     setShowCompanyEdit(false)
     setCorrectedCompany('')
@@ -49,7 +242,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
       return
     }
 
-    await startGenerate()
+    await startGenerate(confirmed)
   }
 
   async function runResearch(company: string): Promise<void> {
@@ -78,11 +271,12 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
     await api.research.company({ company })
   }
 
-  async function startGenerate(): Promise<void> {
+  async function startGenerate(confirmedOverrides?: ApplicationOverrides): Promise<void> {
     if (!activeJob?.analysis || !templateStatus.cv) return
     setStatus('generating')
     setStreamingText('')
-    setPhaseLabel('Claude is writing…')
+    setPhase('writing')
+    setHasRefining(false)
 
     const api = (window as any).api
 
@@ -103,8 +297,8 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
 
     const removeStream = api.generate.onStream((chunk: string) => {
       setStreamingText(prev => prev + chunk)
-      if (chunk.includes('[Overseer]')) setPhaseLabel('Reviewing quality…')
-      if (chunk.includes('[Editor]')) setPhaseLabel('Refining sections…')
+      if (chunk.includes('[Overseer]')) setPhase('reviewing')
+      if (chunk.includes('[Editor]')) { setPhase('refining'); setHasRefining(true) }
     })
     const removeDone = api.generate.onDone((result: unknown) => {
       removeStream(); removeDone(); removeGenError()
@@ -135,13 +329,16 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
       })
     }
 
+    const active = confirmedOverrides ?? overrides
+
     await api.generate.docs({
       profile,
       analysis: activeJob.analysis,
       cvTemplateText,
       coverLetterTemplateText,
       gapAnswers: Object.keys(gapAnswers).length > 0 ? gapAnswers : undefined,
-      companySummary: activeJob.companySummary
+      companySummary: activeJob.companySummary,
+      applicationOverrides: active ?? undefined
     })
   }
 
@@ -234,22 +431,21 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
         </button>
       </div>
 
-      {/* Research streaming preview */}
+      {/* Research in-progress panel */}
       {status === 'researching' && (
-        <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 max-h-36 overflow-y-auto shrink-0">
-          <p className="text-xs text-gray-400 mb-1">Researching company…</p>
-          <pre className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap font-mono">{streamingText || ' '}</pre>
-          <div ref={streamEndRef} />
-        </div>
+        <ResearchProgress
+          streamingText={streamingText}
+          company={activeJob?.analysis?.company ?? 'company'}
+        />
       )}
 
-      {/* Generation streaming preview */}
+      {/* Generation in-progress panel */}
       {status === 'generating' && (
-        <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 max-h-36 overflow-y-auto shrink-0">
-          <p className="text-xs text-gray-400 mb-1">{phaseLabel}</p>
-          <pre className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap font-mono">{streamingText || ' '}</pre>
-          <div ref={streamEndRef} />
-        </div>
+        <GenerationProgress
+          phase={phase}
+          streamingText={streamingText}
+          hasRefining={hasRefining}
+        />
       )}
 
       {/* Error */}
@@ -301,6 +497,16 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
             </p>
           </div>
         )
+      )}
+
+      {/* Pre-generate overrides modal */}
+      {status === 'pre-generate' && overrides && (
+        <PreGenerateModal
+          overrides={overrides}
+          onChange={setOverrides}
+          onConfirm={() => handleConfirmGenerate(overrides)}
+          onCancel={() => setStatus(activeJob?.generatedDocs ? 'done' : 'idle')}
+        />
       )}
 
       {/* Company confirmation modal */}
@@ -388,7 +594,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
                   Wrong company
                 </button>
                 <button
-                  onClick={startGenerate}
+                  onClick={() => startGenerate(overrides ?? undefined)}
                   className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
                 >
                   Yes, continue
@@ -398,6 +604,89 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Pre-generate overrides modal ───────────────────────────────────────────────
+
+interface PreGenerateModalProps {
+  overrides: ApplicationOverrides
+  onChange: (o: ApplicationOverrides) => void
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function PreGenerateModal({ overrides, onChange, onConfirm, onCancel }: PreGenerateModalProps): React.JSX.Element {
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Application details</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
+          Confirm the details to use for this application. These override your profile for this generation only.
+        </p>
+
+        <div className="space-y-4">
+          {/* Location */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Location</label>
+            <input
+              type="text"
+              value={overrides.location}
+              onChange={e => onChange({ ...overrides, location: e.target.value })}
+              placeholder="e.g. London, UK"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Phone number</label>
+            <input
+              type="text"
+              value={overrides.phone}
+              onChange={e => onChange({ ...overrides, phone: e.target.value })}
+              placeholder="e.g. +44 7700 000000"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Sponsorship toggle */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">I have the right to work</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">State this in your application — no sponsorship needed</p>
+            </div>
+            <button
+              onClick={() => onChange({ ...overrides, hasRightToWork: !overrides.hasRightToWork })}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                overrides.hasRightToWork ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                  overrides.hasRightToWork ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end mt-6">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            Generate →
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

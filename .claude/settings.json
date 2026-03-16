@@ -35,7 +35,10 @@
       "Bash(node -e \"const d = require\\(''docx''\\); console.log\\(typeof d, Object.keys\\(d\\).slice\\(0,5\\)\\)\")",
       "Bash(node --input-type=module:*)",
       "Bash(/Users/alastairgrant/Personal/Code_Projects/profile-builder/node_modules/.bin/electron --trace-uncaught out/main/index.js)",
-      "Bash(node -e \"const path = require\\(''path''\\); console.log\\(path.relative\\(''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/renderer/src/pages'', ''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/schema/profile.schema.ts''\\)\\)\")"
+      "Bash(node -e \"const path = require\\(''path''\\); console.log\\(path.relative\\(''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/renderer/src/pages'', ''/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/schema/profile.schema.ts''\\)\\)\")",
+      "Bash(git -C /Users/alastairgrant/Personal/Code_Projects/profile-builder diff src/renderer/src/App.tsx)",
+      "Bash(grep -n \"ANTHROPIC_API_KEY\\\\|process\\\\.env\" /Users/alastairgrant/Personal/Code_Projects/profile-builder/src/agents/*.ts)",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\(json.dumps\\(p.get\\(''''personal'''', {}\\), indent=2\\)\\)\")"
     ],
     "additionalDirectories": [
       "/Users/alastairgrant/Personal/Code_Projects/profile-builder/src/agents"

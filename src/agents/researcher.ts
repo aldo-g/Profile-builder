@@ -61,8 +61,9 @@ export async function runResearcher(input: ResearcherInput): Promise<CompanyRese
     REPORT_COMPANY_TOOL
   ]
 
-  // Agentic loop: web_search is a server-side tool — the API executes searches automatically.
-  // We need to loop, passing back assistant content + tool results until report_company is called.
+  // Agentic loop: web_search_20250305 is a server-side tool — the API executes searches
+  // automatically and embeds results in the response content. We only need to handle
+  // report_company (our client-side tool) by returning its input.
   for (let turn = 0; turn < 10; turn++) {
     const response = await (client.beta.messages as any).create({
       model: 'claude-sonnet-4-6',
@@ -80,32 +81,17 @@ export async function runResearcher(input: ResearcherInput): Promise<CompanyRese
       }
     }
 
-    // Check for report_company in this response
+    // Check for report_company — return immediately when found
     for (const block of response.content) {
       if (block.type === 'tool_use' && block.name === 'report_company') {
         return block.input as CompanyResearch
       }
     }
 
-    // If no more tool use, we're done
-    if (response.stop_reason === 'end_turn') {
-      break
-    }
-
-    // Add assistant turn to history
+    // Model finished a turn without calling report_company.
+    // Prompt it to now call report_company with its findings.
     messages.push({ role: 'assistant', content: response.content })
-
-    // Provide tool results for any non-web-search tool uses
-    const toolResults: Anthropic.ToolResultBlockParam[] = response.content
-      .filter((b: any) => b.type === 'tool_use' && b.name !== 'web_search')
-      .map((b: any) => ({ type: 'tool_result' as const, tool_use_id: b.id, content: '' }))
-
-    if (toolResults.length > 0) {
-      messages.push({ role: 'user', content: toolResults })
-    } else {
-      // web_search tool use — results are embedded in response content; just continue
-      messages.push({ role: 'user', content: [{ type: 'text', text: 'Continue with your research.' }] })
-    }
+    messages.push({ role: 'user', content: 'Now call the report_company tool with your findings.' })
   }
 
   throw new Error('Researcher did not return structured company data.')

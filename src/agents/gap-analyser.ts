@@ -33,6 +33,10 @@ const ANALYSE_GAP_TOOL: Anthropic.Tool = {
         type: 'string',
         description: 'The company name extracted from the listing. Use empty string if not found.'
       },
+      jobLocation: {
+        type: 'string',
+        description: 'The job location extracted from the listing (e.g. "Berlin, Germany", "Remote", "London, UK"). Use empty string if not specified.'
+      },
       missingSkills: {
         type: 'array',
         items: { type: 'string' },
@@ -63,7 +67,7 @@ const ANALYSE_GAP_TOOL: Anthropic.Tool = {
         additionalProperties: { type: 'string' }
       }
     },
-    required: ['jobTitle', 'company', 'missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks', 'skillQuestions']
+    required: ['jobTitle', 'company', 'jobLocation', 'missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks', 'skillQuestions']
   }
 }
 
@@ -146,6 +150,7 @@ export async function runGapAnalyser(
       if (!analysis.skillQuestions) analysis.skillQuestions = {}
       if (!analysis.jobTitle) analysis.jobTitle = 'Untitled role'
       if (!analysis.company) analysis.company = ''
+      if (!analysis.jobLocation) analysis.jobLocation = ''
     }
   }
 

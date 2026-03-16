@@ -45,7 +45,7 @@ With a filled profile and a target job listing, the AI generates:
 
 - **Node.js** v18 or later — [nodejs.org](https://nodejs.org)
 - **npm** v9 or later (bundled with Node.js)
-- **Anthropic API key** — [console.anthropic.com](https://console.anthropic.com)
+- **Anthropic API key** — [console.anthropic.com](https://console.anthropic.com) _(entered in the app on first launch, not required at setup)_
 
 ---
 
@@ -64,28 +64,7 @@ cd profile-builder
 npm install
 ```
 
-**3. Configure environment variables**
-
-Copy the example env file and add your API key:
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` and fill in your values:
-
-```env
-ANTHROPIC_API_KEY=your_api_key_here
-```
-
-Optionally, if you want LinkedIn OAuth import:
-
-```env
-LINKEDIN_CLIENT_ID=your_linkedin_client_id
-LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
-```
-
-**4. Run the app**
+**3. Run the app**
 
 ```bash
 npm run dev

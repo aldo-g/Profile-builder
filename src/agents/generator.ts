@@ -37,6 +37,8 @@ Gap analysis:
 
 {COMPANY_CONTEXT_SECTION}
 
+{APPLICATION_OVERRIDES_SECTION}
+
 CV template structure (extracted text — mirror this structure):
 {CV_TEMPLATE_TEXT}`
 
@@ -66,6 +68,7 @@ export interface GeneratorInput {
   coverLetterTemplateText?: string
   gapAnswers?: Record<string, string>  // skill → answer text
   companySummary?: string
+  applicationOverrides?: { location: string; phone: string; hasRightToWork: boolean }
   onChunk: (chunk: string) => void
 }
 
@@ -87,12 +90,28 @@ export async function runGenerator(input: GeneratorInput): Promise<GeneratedDocs
     ? `Company context (calibrate tone and culture fit in the cover letter):\n${input.companySummary}`
     : ''
 
+  let applicationOverridesSection = ''
+  if (input.applicationOverrides) {
+    const o = input.applicationOverrides
+    const lines: string[] = [
+      'Application overrides — use these values in the CV and cover letter, overriding anything in the profile or template:',
+    ]
+    if (o.location) lines.push(`- Location: ${o.location}`)
+    if (o.phone) lines.push(`- Phone: ${o.phone}`)
+    lines.push(o.hasRightToWork
+      ? '- Right to work: Candidate has the right to work — state this clearly and do NOT mention visa sponsorship anywhere in either document'
+      : '- Right to work: Do NOT include any statement about right to work, visa status, or sponsorship anywhere in either document. If the CV template contains such a line, omit it entirely — do not copy it across'
+    )
+    applicationOverridesSection = lines.join('\n')
+  }
+
   const systemPrompt = GENERATE_SYSTEM_PROMPT
     .replace('{COVER_LETTER_SECTION}', coverLetterSection)
     .replace('{PROFILE_JSON}', JSON.stringify(input.profile, null, 2))
     .replace('{ANALYSIS_JSON}', JSON.stringify(input.analysis, null, 2))
     .replace('{GAP_ANSWERS_SECTION}', gapAnswersSection)
     .replace('{COMPANY_CONTEXT_SECTION}', companyContextSection)
+    .replace('{APPLICATION_OVERRIDES_SECTION}', applicationOverridesSection)
     .replace('{CV_TEMPLATE_TEXT}', input.cvTemplateText)
 
   const stream = client.messages.stream({

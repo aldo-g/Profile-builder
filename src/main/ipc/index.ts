@@ -3,6 +3,7 @@ import { join, extname } from 'path'
 import { readFileSync, existsSync, unlinkSync, writeFileSync, copyFileSync } from 'fs'
 import { createRequire } from 'module'
 import { readProfile, writeProfile } from './profile'
+import { saveSnapshot, listSnapshots, loadSnapshot, deleteSnapshot } from './versions'
 import { getApiKey, setApiKey } from '../settings'
 import { runInterviewer, generateSectionQuestions } from '../../agents/interviewer'
 import { runImporter } from '../../agents/importer'
@@ -76,9 +77,31 @@ ipcMain.handle('profile:reset', () => {
 
 ipcMain.handle('profile:dedupe', async () => {
   const current = readProfile() as Record<string, unknown>
+  saveSnapshot(current, 'Before deduplication')
   const cleaned = await cleanProfile(current)
   writeProfile(cleaned)
   return cleaned
+})
+
+// ── Profile versioning ────────────────────────────────────────────────────────
+
+ipcMain.handle('versions:list', () => listSnapshots())
+
+ipcMain.handle('versions:restore', (_event, id: string) => {
+  const snapshot = loadSnapshot(id)
+  const current = readProfile() as Record<string, unknown>
+  saveSnapshot(current, 'Before restore')
+  writeProfile(snapshot)
+  return snapshot
+})
+
+ipcMain.handle('versions:delete', (_event, id: string) => {
+  deleteSnapshot(id)
+})
+
+ipcMain.handle('versions:saveManual', (_event, label: string) => {
+  const current = readProfile() as Record<string, unknown>
+  return saveSnapshot(current, label)
 })
 
 ipcMain.handle('profile:export', async () => {
@@ -123,6 +146,7 @@ ipcMain.handle('import:baseline', async (_event, payload: { cvPath?: string; lin
   console.log('[import:baseline] extracted keys:', Object.keys(extracted))
 
   const currentProfile = readProfile() as Record<string, unknown>
+  saveSnapshot(currentProfile, 'Before document import')
   const merged = await deduplicateProfile(currentProfile, extracted)
 
   writeProfile(merged)
@@ -187,6 +211,7 @@ ipcMain.handle('job:chat', async (event, payload: {
 
 ipcMain.handle('job:confirmUpdate', (_event, updates: Record<string, unknown>) => {
   const currentProfile = readProfile() as Record<string, unknown>
+  saveSnapshot(currentProfile, 'Before job match update')
   const updatedProfile = deepMergeProfile(currentProfile, updates)
   writeProfile(updatedProfile)
   return updatedProfile
@@ -212,6 +237,7 @@ ipcMain.handle('chat:send', async (event, payload) => {
 
     if (agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0) {
       const currentProfile = readProfile() as Record<string, unknown>
+      saveSnapshot(currentProfile, `Before interview update (${section})`)
       const updatedProfile = deepMergeProfile(currentProfile, agentResponse.profileUpdates)
       writeProfile(updatedProfile)
       event.sender.send('chat:done', { agentResponse, updatedProfile })
@@ -301,6 +327,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
   coverLetterTemplateText?: string
   gapAnswers?: Record<string, string>
   companySummary?: string
+  applicationOverrides?: { location: string; phone: string; hasRightToWork: boolean }
 }) => {
   const send = (channel: string, data: unknown): void => {
     if (!event.sender.isDestroyed()) event.sender.send(channel, data)
@@ -315,6 +342,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
       coverLetterTemplateText: payload.coverLetterTemplateText,
       gapAnswers: payload.gapAnswers,
       companySummary: payload.companySummary,
+      applicationOverrides: payload.applicationOverrides,
       onChunk: (chunk: string) => send('generate:stream', chunk)
     })
 

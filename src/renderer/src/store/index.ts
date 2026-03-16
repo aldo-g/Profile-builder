@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { GapAnalysis, GeneratedDocs, OverseerResult } from '../../../schema/profile.schema'
 
-export type AppPage = 'intro' | 'interview' | 'job-match' | 'generate' | 'import'
+export type AppPage = 'intro' | 'interview' | 'job-match' | 'generate' | 'import' | 'history'
 
 export interface JobSession {
   id: string

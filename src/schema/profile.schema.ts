@@ -52,6 +52,7 @@ export interface ChatErrorPayload {
 export interface GapAnalysis {
   jobTitle: string
   company: string
+  jobLocation: string
   missingSkills: string[]
   highlightExperience: string[]
   gaps: string[]

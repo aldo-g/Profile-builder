@@ -5,6 +5,8 @@ import IntroPage from './pages/IntroPage'
 import ImportPage from './pages/ImportPage'
 import JobMatchPage from './pages/JobMatchPage'
 import GeneratePage from './pages/GeneratePage'
+import WelcomeModal from './components/WelcomeModal'
+import HistoryPage from './pages/HistoryPage'
 
 function useDarkMode(): [boolean, () => void] {
   const [dark, setDark] = useState(() => {
@@ -29,11 +31,22 @@ export default function App(): React.JSX.Element {
   const [deduping, setDeduping] = useState(false)
   const [dedupeMessage, setDedupeMessage] = useState('')
   const [dedupeError, setDedupeError] = useState('')
+
+  // Version history
+  type SnapshotMeta = { id: string; label: string; savedAt: string; size: number }
+  const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([])
+  const [loadingSnapshots, setLoadingSnapshots] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [savingSnapshot, setSavingSnapshot] = useState(false)
+  const [snapshotMsg, setSnapshotMsg] = useState('')
+
   const [apiKey, setApiKeyState] = useState('')
   const [apiKeySaved, setApiKeySaved] = useState(false)
   const [apiKeyError, setApiKeyError] = useState('')
   const setProfile = useStore((s) => s.setProfile)
   const [dark, toggleDark] = useDarkMode()
+  const [showWelcome, setShowWelcome] = useState(false)
 
   // Template state
   const [templateStatus, setTemplateStatus] = useState<{ cv: boolean; coverLetter: boolean }>({ cv: false, coverLetter: false })
@@ -68,7 +81,61 @@ export default function App(): React.JSX.Element {
         setPage('interview' as const)
       }
     })
+    // Show welcome modal on first launch
+    if (!localStorage.getItem('welcome-seen')) {
+      setShowWelcome(true)
+    }
   }, [setProfile, setPage])
+
+  function handleWelcomeDismiss(): void {
+    localStorage.setItem('welcome-seen', '1')
+    setShowWelcome(false)
+  }
+
+  function handleWelcomeGetStarted(): void {
+    localStorage.setItem('welcome-seen', '1')
+    setShowWelcome(false)
+    setPage('interview' as const)
+  }
+
+  async function loadSnapshots(): Promise<void> {
+    setLoadingSnapshots(true)
+    const api = (window as any).api
+    const list = await api.versions.list()
+    setSnapshots(list)
+    setLoadingSnapshots(false)
+  }
+
+  async function handleRestoreSnapshot(id: string): Promise<void> {
+    setRestoringId(id)
+    setSnapshotMsg('')
+    const api = (window as any).api
+    const restored = await api.versions.restore(id)
+    setProfile(restored)
+    setSnapshotMsg('Profile restored.')
+    await loadSnapshots()
+    setRestoringId(null)
+    setTimeout(() => setSnapshotMsg(''), 3000)
+  }
+
+  async function handleDeleteSnapshot(id: string): Promise<void> {
+    setDeletingId(id)
+    const api = (window as any).api
+    await api.versions.delete(id)
+    setSnapshots(prev => prev.filter(s => s.id !== id))
+    setDeletingId(null)
+  }
+
+  async function handleSaveManualSnapshot(): Promise<void> {
+    setSavingSnapshot(true)
+    setSnapshotMsg('')
+    const api = (window as any).api
+    await api.versions.saveManual('Manual snapshot')
+    await loadSnapshots()
+    setSavingSnapshot(false)
+    setSnapshotMsg('Snapshot saved.')
+    setTimeout(() => setSnapshotMsg(''), 3000)
+  }
 
   async function handleSaveApiKey(): Promise<void> {
     const trimmed = apiKey.trim()
@@ -138,7 +205,9 @@ export default function App(): React.JSX.Element {
                 onClick={() => {
                   setDedupeError('')
                   setDedupeMessage('')
+                  setSnapshotMsg('')
                   setShowSettings(true)
+                  loadSnapshots()
                 }}
                 title="Settings"
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -153,6 +222,7 @@ export default function App(): React.JSX.Element {
           <nav className="px-3 py-4 space-y-1">
             <NavItem label="Build Profile" active={page === 'interview'} onClick={() => setPage('interview' as const)} />
             <NavItem label="Job Match" active={page === 'job-match'} onClick={() => setPage('job-match' as const)} />
+            <NavItem label="History" active={page === 'history'} onClick={() => setPage('history' as const)} />
           </nav>
           <ProfileCompletenessWidget onNavigate={() => setPage('interview' as const)} />
 
@@ -193,7 +263,7 @@ export default function App(): React.JSX.Element {
               Import documents
             </button>
             <button
-              onClick={() => setPage('intro' as const)}
+              onClick={() => setShowWelcome(true)}
               className="w-full text-left px-3 py-2 rounded-md text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               About this app
@@ -207,6 +277,7 @@ export default function App(): React.JSX.Element {
           {page === 'job-match' && <JobMatchPage />}
           {page === 'generate' && <GeneratePage templateStatus={templateStatus} />}
           {page === 'import' && <ImportPage />}
+          {page === 'history' && <HistoryPage />}
         </main>
       </div>
 
@@ -225,10 +296,18 @@ export default function App(): React.JSX.Element {
         </button>
       </footer>
 
+      {/* Welcome / About modal */}
+      {showWelcome && (
+        <WelcomeModal
+          onGetStarted={handleWelcomeGetStarted}
+          onClose={handleWelcomeDismiss}
+        />
+      )}
+
       {/* Settings modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl w-80 p-6 shadow-2xl">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl w-96 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Settings</h2>
             <p className="text-xs text-gray-500 mb-6">Manage your profile data</p>
 
@@ -302,6 +381,58 @@ export default function App(): React.JSX.Element {
               )}
               {dedupeError && (
                 <p className="mt-3 text-xs text-red-500 dark:text-red-400">{dedupeError}</p>
+              )}
+            </div>
+
+            {/* ── Version history ─────────────────────────────── */}
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Profile history</p>
+                <button
+                  onClick={handleSaveManualSnapshot}
+                  disabled={savingSnapshot}
+                  className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 text-gray-700 dark:text-white transition-colors"
+                >
+                  {savingSnapshot ? 'Saving…' : 'Save snapshot'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">Automatic snapshots are saved before every profile update. Click Restore to roll back.</p>
+              {snapshotMsg && (
+                <p className="text-xs text-green-600 dark:text-green-400 mb-2">{snapshotMsg}</p>
+              )}
+              {loadingSnapshots ? (
+                <p className="text-xs text-gray-400">Loading…</p>
+              ) : snapshots.length === 0 ? (
+                <p className="text-xs text-gray-400">No snapshots yet.</p>
+              ) : (
+                <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {snapshots.map(s => (
+                    <li key={s.id} className="flex items-center gap-2 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-gray-700 dark:text-gray-300 font-medium">{s.label}</p>
+                        <p className="text-gray-400">
+                          {new Date(s.savedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {' · '}{(s.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRestoreSnapshot(s.id)}
+                        disabled={restoringId === s.id}
+                        className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/60 disabled:opacity-50 transition-colors whitespace-nowrap"
+                      >
+                        {restoringId === s.id ? '…' : 'Restore'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSnapshot(s.id)}
+                        disabled={deletingId === s.id}
+                        className="px-1.5 py-0.5 rounded text-gray-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                        title="Delete snapshot"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
 

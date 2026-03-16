@@ -111,6 +111,17 @@ const api = {
       ipcRenderer.invoke('template:read', payload)
   },
 
+  versions: {
+    list: (): Promise<Array<{ id: string; label: string; savedAt: string; size: number }>> =>
+      ipcRenderer.invoke('versions:list'),
+    restore: (id: string): Promise<Record<string, unknown>> =>
+      ipcRenderer.invoke('versions:restore', id),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('versions:delete', id),
+    saveManual: (label: string): Promise<string> =>
+      ipcRenderer.invoke('versions:saveManual', label)
+  },
+
   shell: {
     openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url)
   },
