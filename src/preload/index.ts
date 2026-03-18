@@ -135,6 +135,7 @@ const api = {
     docs: (payload: {
       profile: object
       analysis: object
+      jobText: string
       cvTemplateText: string
       coverLetterTemplateText?: string
       gapAnswers?: Record<string, string>

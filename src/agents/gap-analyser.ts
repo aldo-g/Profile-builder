@@ -14,6 +14,7 @@ Identify:
 Additionally, infer:
 - roleType: classify the role from the listing. Use 'engineering-manager' if the listing mentions direct reports, team ownership, hiring, or performance management. Use 'tech-lead' if it mentions architectural ownership or mentorship without direct reports. Use 'ic-senior' for senior individual contributors. Use 'product', 'design', or 'data' for those respective domains. Default to 'other'.
 - narrativeAngle: write one sentence describing the primary argument the cover letter should make for THIS candidate against THIS job. Reference the candidate's actual strongest relevant experience. E.g. "Frame the candidate's RAG pipeline work and junior engineer mentorship at Rabobank as evidence of readiness to lead an AI-native engineering team."
+- gapSeverity: for each skill in missingSkills, classify as 'hard' (candidate has no relevant experience — genuinely absent from the profile) or 'soft' (candidate has adjacent experience that could be reframed to address this gap).
 
 Call the analyse_gap tool exactly once with the structured data.
 
@@ -78,9 +79,14 @@ const ANALYSE_GAP_TOOL: Anthropic.Tool = {
       narrativeAngle: {
         type: 'string',
         description: "One sentence describing the primary argument the cover letter should make, e.g. 'Frame the candidate as a proven backend engineer making a natural transition into technical leadership, with evidence of mentorship and architectural ownership.'"
+      },
+      gapSeverity: {
+        type: 'object',
+        description: "For each missing skill, classify severity: 'hard' (no relevant experience in profile — candidate has never touched this) or 'soft' (adjacent experience exists that could be reframed to address this gap). Keys must match entries in missingSkills.",
+        additionalProperties: { type: 'string', enum: ['hard', 'soft'] }
       }
     },
-    required: ['jobTitle', 'company', 'jobLocation', 'missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks', 'skillQuestions', 'roleType', 'narrativeAngle']
+    required: ['jobTitle', 'company', 'jobLocation', 'missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks', 'skillQuestions', 'roleType', 'narrativeAngle', 'gapSeverity']
   }
 }
 
@@ -166,6 +172,7 @@ export async function runGapAnalyser(
       if (!analysis.jobLocation) analysis.jobLocation = ''
       if (!analysis.roleType) analysis.roleType = 'other'
       if (!analysis.narrativeAngle) analysis.narrativeAngle = ''
+      if (!analysis.gapSeverity) analysis.gapSeverity = {}
     }
   }
 

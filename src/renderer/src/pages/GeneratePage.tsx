@@ -258,6 +258,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
     await api.generate.docs({
       profile,
       analysis: activeJob.analysis,
+      jobText: activeJob.jobText,
       cvTemplateText,
       coverLetterTemplateText,
       gapAnswers: Object.keys(gapAnswers).length > 0 ? gapAnswers : undefined,

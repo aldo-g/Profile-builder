@@ -13,7 +13,12 @@ Score each dimension from 1 to 10:
 - keyword_coverage (weight 30%): Does the CV address the required skills from the gap analysis? Are missing skills mentioned where the candidate has relevant experience? Are highlight experience entries prominent?
 - narrative_coherence (weight 20%): Does the cover letter lead with the correct argument for the role type? Does the CV structure support that argument? Use the narrativeAngle field from the gap analysis as the benchmark. If no narrativeAngle is provided, fall back to evaluating tone against generic professional standards.
 - structural_completeness (weight 20%): Are all expected CV sections present (contact, summary, experience, education, skills)? Is the cover letter structured (opening, body, close)?
-- holistic (weight 30%): Overall quality, coherence, persuasiveness, absence of AI-tells (em dashes, generic filler phrases, passive language).
+- holistic (weight 30%): Overall quality, coherence, persuasiveness, absence of AI-tells. When scoring holistic, specifically penalise the presence of any of the following patterns — deduct at least 1 point from holistic for each category found:
+  - Cover letter opens with "I am writing to apply for..." or "I am a [title] specialising in..." or any structural variant
+  - Phrases: "I am passionate about", "I am excited about", "I am thrilled", "leveraging", "utilising", "spearheaded", "results-driven", "proven track record", "dynamic", "synergy", "I would welcome the opportunity to discuss"
+  - Passive constructions where active voice would be stronger
+  - Generic closing paragraph that could apply to any company or role
+  - Em dashes (—) anywhere in either document
 
 Scoring formula:
 score = (keyword_coverage * 0.3) + (narrative_coherence * 0.2) + (structural_completeness * 0.2) + (holistic * 0.3)

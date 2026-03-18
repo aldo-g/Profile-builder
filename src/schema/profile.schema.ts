@@ -61,6 +61,7 @@ export interface GapAnalysis {
   skillQuestions: Record<string, string>
   roleType: 'ic-junior' | 'ic-senior' | 'tech-lead' | 'engineering-manager' | 'product' | 'design' | 'data' | 'other'
   narrativeAngle: string
+  gapSeverity: Record<string, 'hard' | 'soft'>
 }
 
 export interface JobAnalyseResult {

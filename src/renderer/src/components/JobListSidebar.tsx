@@ -27,7 +27,7 @@ export function JobListSidebar({
         {sessions.length === 0 && (
           <p className="px-4 py-2 text-xs text-gray-400">No saved jobs yet</p>
         )}
-        {sessions.map(job => (
+        {[...sessions].reverse().map(job => (
           <JobListItem
             key={job.id}
             job={job}

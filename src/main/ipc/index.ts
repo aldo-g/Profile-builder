@@ -318,6 +318,7 @@ ipcMain.handle('research:company', async (event, payload: { company: string }) =
 ipcMain.handle('generate:docs', async (event, payload: {
   profile: Record<string, unknown>
   analysis: GapAnalysis
+  jobText: string
   cvTemplateText: string
   coverLetterTemplateText?: string
   gapAnswers?: Record<string, string>
@@ -333,6 +334,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
     let generated = await runGenerator({
       profile: payload.profile,
       analysis: payload.analysis,
+      jobText: payload.jobText ?? '',
       cvTemplateText: payload.cvTemplateText,
       coverLetterTemplateText: payload.coverLetterTemplateText,
       gapAnswers: payload.gapAnswers,
@@ -362,6 +364,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
         cvMarkdown: generated.cvMarkdown,
         coverLetterMarkdown: generated.coverLetterMarkdown,
         overseerResult,
+        jobText: payload.jobText,
         roleType: payload.analysis.roleType,
         narrativeAngle: payload.analysis.narrativeAngle,
         onChunk: (chunk: string) => send('generate:stream', chunk)
