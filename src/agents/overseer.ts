@@ -11,12 +11,12 @@ You will receive:
 
 Score each dimension from 1 to 10:
 - keyword_coverage (weight 30%): Does the CV address the required skills from the gap analysis? Are missing skills mentioned where the candidate has relevant experience? Are highlight experience entries prominent?
-- tone_culture_fit (weight 20%): Does the cover letter match the company's tone and values? If no company research is available, score against generic professional standards.
+- narrative_coherence (weight 20%): Does the cover letter lead with the correct argument for the role type? Does the CV structure support that argument? Use the narrativeAngle field from the gap analysis as the benchmark. If no narrativeAngle is provided, fall back to evaluating tone against generic professional standards.
 - structural_completeness (weight 20%): Are all expected CV sections present (contact, summary, experience, education, skills)? Is the cover letter structured (opening, body, close)?
 - holistic (weight 30%): Overall quality, coherence, persuasiveness, absence of AI-tells (em dashes, generic filler phrases, passive language).
 
 Scoring formula:
-score = (keyword_coverage * 0.3) + (tone_culture_fit * 0.2) + (structural_completeness * 0.2) + (holistic * 0.3)
+score = (keyword_coverage * 0.3) + (narrative_coherence * 0.2) + (structural_completeness * 0.2) + (holistic * 0.3)
 Round to one decimal place.
 
 pass = score >= 8.0
@@ -35,11 +35,11 @@ const REVIEW_TOOL: Anthropic.Tool = {
         type: 'object',
         properties: {
           keyword_coverage: { type: 'number', description: '1–10' },
-          tone_culture_fit: { type: 'number', description: '1–10' },
+          narrative_coherence: { type: 'number', description: '1–10' },
           structural_completeness: { type: 'number', description: '1–10' },
           holistic: { type: 'number', description: '1–10' }
         },
-        required: ['keyword_coverage', 'tone_culture_fit', 'structural_completeness', 'holistic']
+        required: ['keyword_coverage', 'narrative_coherence', 'structural_completeness', 'holistic']
       },
       score: { type: 'number', description: 'Weighted average 0–10, one decimal place' },
       pass: { type: 'boolean', description: 'true if score >= 8.0' },
@@ -95,12 +95,17 @@ export async function runOverseer(input: OverseerInput): Promise<OverseerResult>
     ? `Company research summary:\n${input.companySummary}`
     : 'No company research available — evaluate tone against generic professional standards.'
 
+  const roleTypeLine = input.analysis.roleType ? `Role type: ${input.analysis.roleType}` : ''
+  const narrativeLine = input.analysis.narrativeAngle ? `Narrative angle: ${input.analysis.narrativeAngle}` : ''
+
   const userMessage = [
     `CV:\n${input.cvMarkdown}`,
     `\nCover letter:\n${input.coverLetterMarkdown}`,
     `\nGap analysis:\n${JSON.stringify(input.analysis, null, 2)}`,
+    roleTypeLine,
+    narrativeLine,
     `\n${companySection}`
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',

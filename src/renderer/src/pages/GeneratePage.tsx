@@ -356,25 +356,55 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
         </div>
       )}
 
-      {/* Overseer score badge */}
+      {/* Overseer score breakdown */}
       {docs && overseerResult && (
-        <div className="flex items-center gap-3 shrink-0 px-1">
-          <span className="text-xs text-gray-400">Quality score</span>
-          <span className={`text-sm font-semibold ${
-            overseerResult.score >= 8 ? 'text-green-600 dark:text-green-400' :
-            overseerResult.score >= 6 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400'
-          }`}>
-            {overseerResult.score.toFixed(1)}/10
-          </span>
-          {overseerResult.pass ? (
-            <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/40 border border-green-200 dark:border-green-700/50 rounded px-2 py-0.5">
-              Passed review
+        <div className="shrink-0 px-1 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-semibold ${
+              overseerResult.score >= 8 ? 'text-green-600 dark:text-green-400' :
+              overseerResult.score >= 6 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400'
+            }`}>
+              {overseerResult.score.toFixed(1)}/10
             </span>
-          ) : (
-            <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700/40 rounded px-2 py-0.5">
-              Edited &amp; improved
+            {overseerResult.pass ? (
+              <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/40 border border-green-200 dark:border-green-700/50 rounded px-2 py-0.5">
+                Passed review
+              </span>
+            ) : (
+              <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700/40 rounded px-2 py-0.5">
+                Edited &amp; improved
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+            <span>
+              Keywords{' '}
+              <span className={overseerResult.dimensions.keyword_coverage >= 8 ? 'text-green-600 dark:text-green-400 font-medium' : overseerResult.dimensions.keyword_coverage >= 6 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-red-500 dark:text-red-400 font-medium'}>
+                {overseerResult.dimensions.keyword_coverage.toFixed(1)}
+              </span>
             </span>
-          )}
+            <span className="text-gray-200 dark:text-gray-700">·</span>
+            <span>
+              Narrative{' '}
+              <span className={overseerResult.dimensions.narrative_coherence >= 8 ? 'text-green-600 dark:text-green-400 font-medium' : overseerResult.dimensions.narrative_coherence >= 6 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-red-500 dark:text-red-400 font-medium'}>
+                {overseerResult.dimensions.narrative_coherence.toFixed(1)}
+              </span>
+            </span>
+            <span className="text-gray-200 dark:text-gray-700">·</span>
+            <span>
+              Structure{' '}
+              <span className={overseerResult.dimensions.structural_completeness >= 8 ? 'text-green-600 dark:text-green-400 font-medium' : overseerResult.dimensions.structural_completeness >= 6 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-red-500 dark:text-red-400 font-medium'}>
+                {overseerResult.dimensions.structural_completeness.toFixed(1)}
+              </span>
+            </span>
+            <span className="text-gray-200 dark:text-gray-700">·</span>
+            <span>
+              Holistic{' '}
+              <span className={overseerResult.dimensions.holistic >= 8 ? 'text-green-600 dark:text-green-400 font-medium' : overseerResult.dimensions.holistic >= 6 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-red-500 dark:text-red-400 font-medium'}>
+                {overseerResult.dimensions.holistic.toFixed(1)}
+              </span>
+            </span>
+          </div>
         </div>
       )}
 
@@ -399,6 +429,23 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
           </div>
         )
       )}
+
+      {/* Recommended tweaks warning */}
+      {status !== 'generating' && !docs && activeJob?.analysis?.recommendedTweaks?.length ? (
+        <div className="shrink-0 px-4 py-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg">
+          <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-2">
+            Your profile may be missing some experience for this role — generation will do its best.
+          </p>
+          <ul className="space-y-1">
+            {activeJob.analysis.recommendedTweaks.slice(0, 3).map((tweak, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+                <span className="mt-0.5 flex-shrink-0">•</span>
+                <span>{tweak}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {/* Pre-generate overrides modal */}
       {status === 'pre-generate' && overrides && (

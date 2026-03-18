@@ -5,6 +5,17 @@ import { JobListSidebar } from '../components/JobListSidebar'
 import GapSidebar from '../components/GapSidebar'
 import { GapQuestionList } from '../components/GapQuestionList'
 
+const ROLE_TYPE_LABELS: Array<{ value: GapAnalysis['roleType']; label: string }> = [
+  { value: 'ic-junior',           label: 'Junior IC' },
+  { value: 'ic-senior',           label: 'Senior IC' },
+  { value: 'tech-lead',           label: 'Tech Lead' },
+  { value: 'engineering-manager', label: 'Engineering Manager' },
+  { value: 'product',             label: 'Product' },
+  { value: 'design',              label: 'Design' },
+  { value: 'data',                label: 'Data' },
+  { value: 'other',               label: 'Other' },
+]
+
 export default function JobMatchPage(): React.JSX.Element {
   const {
     setProfile,
@@ -20,7 +31,7 @@ export default function JobMatchPage(): React.JSX.Element {
 
   const activeJob = jobSessions.find(j => j.id === activeJobId) ?? null
 
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -34,10 +45,10 @@ export default function JobMatchPage(): React.JSX.Element {
 
   const [showGapWarning, setShowGapWarning] = useState(false)
 
-  function showToast(message: string): void {
-    setToast(message)
+  function showToast(message: string, type: 'success' | 'error' = 'success'): void {
+    setToast({ message, type })
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    toastTimerRef.current = setTimeout(() => setToast(null), 4000)
+    toastTimerRef.current = setTimeout(() => setToast(null), type === 'error' ? 8000 : 4000)
   }
 
   // Reset answer and selection when switching jobs
@@ -69,9 +80,10 @@ export default function JobMatchPage(): React.JSX.Element {
       }
     })
 
-    const removeError = api.job.onError((_payload: any) => {
+    const removeError = api.job.onError((payload: any) => {
       submittingIndexRef.current = null
       setSubmittingIndex(null)
+      showToast(payload?.error ?? 'Unknown error', 'error')
     })
 
     return () => { removeDone(); removeError() }
@@ -254,11 +266,21 @@ export default function JobMatchPage(): React.JSX.Element {
     <div className="flex h-full overflow-hidden relative">
       {/* Toast */}
       {toast && (
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-green-700/90 dark:bg-green-900/90 border border-green-600 dark:border-green-700 text-white dark:text-green-300 text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg pointer-events-none whitespace-nowrap">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          {toast}
+        <div className={`absolute bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg pointer-events-none max-w-sm text-center ${
+          toast.type === 'error'
+            ? 'bg-red-700/90 dark:bg-red-900/90 border border-red-600 dark:border-red-700 text-white dark:text-red-300'
+            : 'bg-green-700/90 dark:bg-green-900/90 border border-green-600 dark:border-green-700 text-white dark:text-green-300'
+        }`}>
+          {toast.type === 'error' ? (
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          {toast.message}
         </div>
       )}
 
@@ -380,6 +402,42 @@ export default function JobMatchPage(): React.JSX.Element {
               onConfirmUpdate={handleConfirmUpdate}
               onDismissUpdate={handleDismissUpdate}
             />
+          )}
+
+          {/* Role type + narrative angle confirmation row */}
+          {activeJob.analysis && (
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-24 flex-shrink-0">Role type</span>
+                <select
+                  value={activeJob.analysis.roleType || 'other'}
+                  onChange={(e) => {
+                    updateJobSession(activeJob.id, {
+                      analysis: { ...activeJob.analysis!, roleType: e.target.value as GapAnalysis['roleType'] }
+                    })
+                  }}
+                  className="text-xs font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-600/40 rounded-full px-2.5 py-1 focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  {ROLE_TYPE_LABELS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-24 flex-shrink-0 pt-2">Narrative</span>
+                <textarea
+                  value={activeJob.analysis.narrativeAngle || ''}
+                  onChange={(e) => {
+                    updateJobSession(activeJob.id, {
+                      analysis: { ...activeJob.analysis!, narrativeAngle: e.target.value }
+                    })
+                  }}
+                  rows={2}
+                  placeholder="No narrative angle inferred — you can add one manually."
+                  className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
           )}
 
           {/* Generate button */}

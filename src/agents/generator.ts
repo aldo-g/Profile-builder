@@ -6,12 +6,14 @@ const GENERATE_SYSTEM_PROMPT = `You are a professional CV and cover letter write
 You have been given:
 1. The candidate's full profile JSON
 2. A gap analysis comparing their profile to a specific job listing
-3. The text content of their existing CV template — use this to understand their preferred structure, section order, tone, and level of detail
+3. The text content of their existing CV template — use this as a guide for structure, section order, tone, and level of detail
 4. (Optional) The candidate's own answers to gap questions — treat these as additional context to incorporate where relevant, even if not yet in the profile
 5. (Optional) Company research context — use this to calibrate the tone and culture fit of the cover letter
 
+The template is a structural guide, not a script. Do NOT copy specific phrases, personal details, or context-specific statements from the template — especially anything about location, visa status, work authorisation, availability, or job-seeking intent. These details must come from the profile JSON and any application overrides, not from the template text.
+
 Your task:
-- Write a tailored CV in markdown that exactly mirrors the structure and section ordering of their template CV
+- Write a tailored CV in markdown that follows the structure and section ordering of their template CV as a guide
 - Write a matching cover letter in markdown
 - Emphasise the experience listed in highlightExperience and frame skills to address the job's requirements
 - Incorporate relevant detail from the candidate's gap answers where it strengthens the application
@@ -22,6 +24,17 @@ Your task:
 - Use hyphens (-) for bullet/list items as normal
 - Use the job title and company from the gap analysis in the cover letter opening
 - Always include full URLs in the contact/header section — portfolio website, LinkedIn, GitHub, etc. Write them out in full (e.g. www.example.com, linkedin.com/in/username) — never shorten or omit them
+
+Role type for this application: {ROLE_TYPE}
+Narrative angle: {NARRATIVE_ANGLE}
+
+Framing rules by role type:
+- engineering-manager: Lead with team leadership, delivery ownership, and people development. Frame IC experience as evidence of the judgment and credibility that underpins effective management. The cover letter's central argument is readiness to lead, not depth of implementation.
+- tech-lead: Lead with architectural scope and cross-team influence. Mentorship is a supporting signal, not the headline.
+- ic-senior / ic-junior: Lead with technical depth and concrete delivery. Standard framing.
+- product / design / data / other: Adapt framing to the domain signals in the gap analysis.
+- For all role types: never invent seniority or authority the candidate did not hold. Reframe what exists — do not fabricate what does not.
+- If summary.variants exists in the profile, select the variant whose content best matches the roleType and narrativeAngle rather than defaulting to summary.default.
 
 {COVER_LETTER_SECTION}
 
@@ -91,21 +104,26 @@ export async function runGenerator(input: GeneratorInput): Promise<GeneratedDocs
     : ''
 
   let applicationOverridesSection = ''
+  const lines: string[] = [
+    'Application overrides — use these values in the CV and cover letter, overriding anything in the profile or template:',
+  ]
   if (input.applicationOverrides) {
     const o = input.applicationOverrides
-    const lines: string[] = [
-      'Application overrides — use these values in the CV and cover letter, overriding anything in the profile or template:',
-    ]
     if (o.location) lines.push(`- Location: ${o.location}`)
     if (o.phone) lines.push(`- Phone: ${o.phone}`)
     lines.push(o.hasRightToWork
       ? '- Right to work: Candidate has the right to work — state this clearly and do NOT mention visa sponsorship anywhere in either document'
       : '- Right to work: Do NOT include any statement about right to work, visa status, or sponsorship anywhere in either document. If the CV template contains such a line, omit it entirely — do not copy it across'
     )
-    applicationOverridesSection = lines.join('\n')
+  } else {
+    lines.push('- Do NOT include any statement about visa status, work authorisation, sponsorship, WHV, working holiday, or availability for short-term contracts unless explicitly stated in the profile JSON. Do not copy any such statements from the template.')
+    lines.push('- For location: use the location from the profile JSON. Do not copy the location from the template.')
   }
+  applicationOverridesSection = lines.join('\n')
 
   const systemPrompt = GENERATE_SYSTEM_PROMPT
+    .replace('{ROLE_TYPE}', input.analysis.roleType ?? 'other')
+    .replace('{NARRATIVE_ANGLE}', input.analysis.narrativeAngle ?? '')
     .replace('{COVER_LETTER_SECTION}', coverLetterSection)
     .replace('{PROFILE_JSON}', JSON.stringify(input.profile, null, 2))
     .replace('{ANALYSIS_JSON}', JSON.stringify(input.analysis, null, 2))

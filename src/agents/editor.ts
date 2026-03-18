@@ -7,6 +7,7 @@ You will receive:
 1. The original CV in markdown
 2. The original cover letter in markdown
 3. A list of specific section-level feedback items pointing to headings that need improvement
+4. (Optional) Role type and narrative angle from the gap analysis
 
 Your task: rewrite ONLY the sections listed in the feedback. Do not touch any other sections.
 
@@ -17,6 +18,8 @@ For each section in the feedback:
 - Do NOT use em dashes (—) anywhere. Use commas, colons, or rewrite instead
 - Use hyphens (-) for bullet/list items as normal
 - The heading string in your output must exactly match the heading string provided in the feedback
+
+Use the narrativeAngle to ensure the cover letter's opening paragraph leads with the correct argument. If the cover letter does not open with the narrativeAngle argument, rewrite the opening paragraph so it does.
 
 Call edit_sections exactly once.`
 
@@ -59,6 +62,8 @@ export interface EditorInput {
   cvMarkdown: string
   coverLetterMarkdown: string
   overseerResult: OverseerResult
+  roleType?: string
+  narrativeAngle?: string
   onChunk: (chunk: string) => void
 }
 
@@ -105,11 +110,17 @@ export async function runEditor(input: EditorInput): Promise<EditedDocs> {
     ...input.overseerResult.feedback.coverLetter.map(f => `  [${f.section}] Issue: ${f.issue} | Suggestion: ${f.suggestion}`)
   ].join('\n')
 
+  const roleContext = [
+    input.roleType ? `Role type: ${input.roleType}` : '',
+    input.narrativeAngle ? `Narrative angle: ${input.narrativeAngle}` : ''
+  ].filter(Boolean).join('\n')
+
   const userMessage = [
     `Original CV:\n${input.cvMarkdown}`,
     `\nOriginal cover letter:\n${input.coverLetterMarkdown}`,
-    `\nFeedback:\n${feedbackSummary}`
-  ].join('\n')
+    `\nFeedback:\n${feedbackSummary}`,
+    roleContext ? `\n${roleContext}` : ''
+  ].filter(Boolean).join('\n')
 
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',

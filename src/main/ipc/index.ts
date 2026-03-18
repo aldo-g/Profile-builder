@@ -18,6 +18,7 @@ import type { GapAnalysis, OverseerResult } from '../../schema/profile.schema'
 import { parseLinkedInZip, linkedInDataToText } from '../linkedin-parser'
 import { linkedInOAuth } from '../linkedin-oauth'
 import { markdownToHtml } from '../markdownToHtml'
+import { withRetry, friendlyErrorMessage } from '../../agents/utils'
 
 // Deep merge profileUpdates into the current saved profile.
 // Arrays are replaced at the top level (the agent returns the full updated array),
@@ -179,7 +180,7 @@ ipcMain.handle('job:chat', async (event, payload: {
   const { message, conversationHistory, jobText, analysis, profile } = payload
 
   try {
-    const agentResponse = await runGapAnalyserChat({
+    const agentResponse = await withRetry(() => runGapAnalyserChat({
       userMessage: message,
       conversationHistory,
       jobText,
@@ -190,7 +191,7 @@ ipcMain.handle('job:chat', async (event, payload: {
           event.sender.send('job:stream', chunk)
         }
       }
-    })
+    }))
 
     if (event.sender.isDestroyed()) return
 
@@ -203,8 +204,7 @@ ipcMain.handle('job:chat', async (event, payload: {
     })
   } catch (err: unknown) {
     if (event.sender.isDestroyed()) return
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-    event.sender.send('job:error', { error: errorMessage })
+    event.sender.send('job:error', { error: friendlyErrorMessage(err) })
   }
 })
 
@@ -245,7 +245,7 @@ ipcMain.handle('chat:send', async (event, payload) => {
     }
   } catch (err: unknown) {
     if (event.sender.isDestroyed()) return
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+    const errorMessage = friendlyErrorMessage(err)
     event.sender.send('chat:error', { error: errorMessage })
   }
 })
@@ -307,7 +307,7 @@ ipcMain.handle('research:company', async (event, payload: { company: string }) =
     if (!event.sender.isDestroyed()) event.sender.send('research:done', result)
   } catch (err: unknown) {
     if (!event.sender.isDestroyed()) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      const errorMessage = friendlyErrorMessage(err)
       event.sender.send('research:error', { error: errorMessage })
     }
   }
@@ -362,6 +362,8 @@ ipcMain.handle('generate:docs', async (event, payload: {
         cvMarkdown: generated.cvMarkdown,
         coverLetterMarkdown: generated.coverLetterMarkdown,
         overseerResult,
+        roleType: payload.analysis.roleType,
+        narrativeAngle: payload.analysis.narrativeAngle,
         onChunk: (chunk: string) => send('generate:stream', chunk)
       })
 
@@ -371,7 +373,7 @@ ipcMain.handle('generate:docs', async (event, payload: {
     send('generate:done', { ...generated, overseerResult })
   } catch (err: unknown) {
     if (event.sender.isDestroyed()) return
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+    const errorMessage = friendlyErrorMessage(err)
     send('generate:error', { error: errorMessage })
   }
 })

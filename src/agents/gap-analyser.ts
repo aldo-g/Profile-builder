@@ -11,6 +11,10 @@ Identify:
 - Concrete additions or edits the candidate should make to strengthen their candidacy
 - For each missing skill, one specific, targeted question to ask the candidate (e.g. "Have you worked with vector databases like Pinecone or Weaviate? If so, in what context?"). Questions must be concrete and reference the candidate's existing experience where possible.
 
+Additionally, infer:
+- roleType: classify the role from the listing. Use 'engineering-manager' if the listing mentions direct reports, team ownership, hiring, or performance management. Use 'tech-lead' if it mentions architectural ownership or mentorship without direct reports. Use 'ic-senior' for senior individual contributors. Use 'product', 'design', or 'data' for those respective domains. Default to 'other'.
+- narrativeAngle: write one sentence describing the primary argument the cover letter should make for THIS candidate against THIS job. Reference the candidate's actual strongest relevant experience. E.g. "Frame the candidate's RAG pipeline work and junior engineer mentorship at Rabobank as evidence of readiness to lead an AI-native engineering team."
+
 Call the analyse_gap tool exactly once with the structured data.
 
 Current profile:
@@ -65,9 +69,18 @@ const ANALYSE_GAP_TOOL: Anthropic.Tool = {
         type: 'object',
         description: 'A map of missing skill name → one specific question to ask the candidate about their experience with that skill',
         additionalProperties: { type: 'string' }
+      },
+      roleType: {
+        type: 'string',
+        enum: ['ic-junior', 'ic-senior', 'tech-lead', 'engineering-manager', 'product', 'design', 'data', 'other'],
+        description: "The nature of the role inferred from the listing. Use 'engineering-manager' for roles with direct reports, team ownership, or delivery ownership. Use 'tech-lead' for senior ICs with architectural/mentorship scope."
+      },
+      narrativeAngle: {
+        type: 'string',
+        description: "One sentence describing the primary argument the cover letter should make, e.g. 'Frame the candidate as a proven backend engineer making a natural transition into technical leadership, with evidence of mentorship and architectural ownership.'"
       }
     },
-    required: ['jobTitle', 'company', 'jobLocation', 'missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks', 'skillQuestions']
+    required: ['jobTitle', 'company', 'jobLocation', 'missingSkills', 'highlightExperience', 'gaps', 'score', 'recommendedTweaks', 'skillQuestions', 'roleType', 'narrativeAngle']
   }
 }
 
@@ -151,6 +164,8 @@ export async function runGapAnalyser(
       if (!analysis.jobTitle) analysis.jobTitle = 'Untitled role'
       if (!analysis.company) analysis.company = ''
       if (!analysis.jobLocation) analysis.jobLocation = ''
+      if (!analysis.roleType) analysis.roleType = 'other'
+      if (!analysis.narrativeAngle) analysis.narrativeAngle = ''
     }
   }
 

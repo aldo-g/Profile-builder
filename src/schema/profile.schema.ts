@@ -59,6 +59,8 @@ export interface GapAnalysis {
   score: number
   recommendedTweaks: string[]
   skillQuestions: Record<string, string>
+  roleType: 'ic-junior' | 'ic-senior' | 'tech-lead' | 'engineering-manager' | 'product' | 'design' | 'data' | 'other'
+  narrativeAngle: string
 }
 
 export interface JobAnalyseResult {
@@ -77,7 +79,7 @@ export interface OverseerResult {
   score: number  // weighted average, 1 decimal place
   dimensions: {
     keyword_coverage: number       // weight 0.3
-    tone_culture_fit: number       // weight 0.2
+    narrative_coherence: number    // weight 0.2
     structural_completeness: number // weight 0.2
     holistic: number               // weight 0.3
   }
