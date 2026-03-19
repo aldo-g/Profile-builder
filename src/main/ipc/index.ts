@@ -14,6 +14,7 @@ import { runGenerator } from '../../agents/generator'
 import { runResearcher } from '../../agents/researcher'
 import { runOverseer } from '../../agents/overseer'
 import { runEditor } from '../../agents/editor'
+import { runTrimmer } from '../../agents/trimmer'
 import type { GapAnalysis, OverseerResult } from '../../schema/profile.schema'
 import { parseLinkedInZip, linkedInDataToText } from '../linkedin-parser'
 import { linkedInOAuth } from '../linkedin-oauth'
@@ -166,8 +167,8 @@ ipcMain.handle('questions:generate', async (_event, payload: { section: string; 
   return generateSectionQuestions(payload.profile, payload.section)
 })
 
-ipcMain.handle('job:analyse', async (_event, payload: { jobText: string; profile: Record<string, unknown> }) => {
-  return runGapAnalyser(payload)
+ipcMain.handle('job:analyse', async (_event, payload: { jobText: string; profile: Record<string, unknown>; previousAnswers?: Record<string, string> }) => {
+  return runGapAnalyser({ jobText: payload.jobText, profile: payload.profile, previousAnswers: payload.previousAnswers })
 })
 
 ipcMain.handle('job:chat', async (event, payload: {
@@ -234,7 +235,17 @@ ipcMain.handle('chat:send', async (event, payload) => {
 
     if (event.sender.isDestroyed()) return
 
-    if (agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0) {
+    const hasUpdates = agentResponse.profileUpdates && Object.keys(agentResponse.profileUpdates).length > 0
+    const hasSkillUpdates = hasUpdates && 'skills' in agentResponse.profileUpdates
+
+    if (hasSkillUpdates) {
+      // Skills updates require user confirmation — send proposed, don't auto-save
+      event.sender.send('chat:done', {
+        agentResponse,
+        updatedProfile: profile,
+        proposedUpdates: agentResponse.profileUpdates
+      })
+    } else if (hasUpdates) {
       const currentProfile = readProfile() as Record<string, unknown>
       saveSnapshot(currentProfile, `Before interview update (${section})`)
       const updatedProfile = deepMergeProfile(currentProfile, agentResponse.profileUpdates)
@@ -248,6 +259,14 @@ ipcMain.handle('chat:send', async (event, payload) => {
     const errorMessage = friendlyErrorMessage(err)
     event.sender.send('chat:error', { error: errorMessage })
   }
+})
+
+ipcMain.handle('chat:confirmUpdate', (_event, payload: { updates: Record<string, unknown>; section: string }) => {
+  const currentProfile = readProfile() as Record<string, unknown>
+  saveSnapshot(currentProfile, `Before interview update (${payload.section})`)
+  const updatedProfile = deepMergeProfile(currentProfile, payload.updates)
+  writeProfile(updatedProfile)
+  return updatedProfile
 })
 
 // ── Template management ──────────────────────────────────────────────────────
@@ -323,6 +342,8 @@ ipcMain.handle('generate:docs', async (event, payload: {
   coverLetterTemplateText?: string
   gapAnswers?: Record<string, string>
   companySummary?: string
+  productContext?: string
+  targetPages?: number
   applicationOverrides?: { location: string; phone: string; hasRightToWork: boolean }
 }) => {
   const send = (channel: string, data: unknown): void => {
@@ -339,9 +360,45 @@ ipcMain.handle('generate:docs', async (event, payload: {
       coverLetterTemplateText: payload.coverLetterTemplateText,
       gapAnswers: payload.gapAnswers,
       companySummary: payload.companySummary,
+      productContext: payload.productContext,
+      targetPages: payload.targetPages ?? 2,
       applicationOverrides: payload.applicationOverrides,
       onChunk: (chunk: string) => send('generate:stream', chunk)
     })
+
+    // ── Phase 1.5: Length check ─────────────────────────────────────────────
+    // CV_CHARS_PER_PAGE: empirically calibrated for A4 PDF (Georgia 10.5pt,
+    // 44px top/bottom padding, 52px left/right, 1.55 line-height).
+    // Markdown structural overhead (headings, blank lines, bullet markers)
+    // means the rendered page is denser than raw char count implies — 2400
+    // chars of markdown ≈ 1 rendered A4 page.
+    const CV_CHARS_PER_PAGE = 2400
+    const targetPages = payload.targetPages ?? 2
+    const estimatedPages = generated.cvMarkdown.length / CV_CHARS_PER_PAGE
+
+    if (estimatedPages > targetPages + 0.3) {
+      send('generate:stream', `\n\n[Trimmer] CV estimated at ${estimatedPages.toFixed(1)} pages — trimming to ${targetPages}…`)
+      const trimmed = await runTrimmer({
+        cvMarkdown: generated.cvMarkdown,
+        currentEstimatedPages: Math.round(estimatedPages * 10) / 10,
+        targetPages,
+        onChunk: (chunk: string) => send('generate:stream', chunk)
+      })
+      generated = { ...generated, cvMarkdown: trimmed.cvMarkdown }
+
+      // Second pass if still over — avoids the editor working on a still-long CV
+      const afterTrimPages = generated.cvMarkdown.length / CV_CHARS_PER_PAGE
+      if (afterTrimPages > targetPages + 0.3) {
+        send('generate:stream', `\n[Trimmer] Still ${afterTrimPages.toFixed(1)} pages — trimming again…`)
+        const trimmed2 = await runTrimmer({
+          cvMarkdown: generated.cvMarkdown,
+          currentEstimatedPages: Math.round(afterTrimPages * 10) / 10,
+          targetPages,
+          onChunk: (chunk: string) => send('generate:stream', chunk)
+        })
+        generated = { ...generated, cvMarkdown: trimmed2.cvMarkdown }
+      }
+    }
 
     // ── Phase 2: Overseer review ────────────────────────────────────────────
     send('generate:stream', '\n\n[Overseer] Reviewing documents…')
@@ -356,7 +413,11 @@ ipcMain.handle('generate:docs', async (event, payload: {
     send('generate:stream', ` Score: ${overseerResult.score}/10`)
 
     // ── Phase 3: Edit if needed (max 1 iteration) ───────────────────────────
-    if (!overseerResult.pass) {
+    // Fast-path heuristic: if the gap analysis score is high and missing skills are few,
+    // the candidate is a strong match and the generated docs are likely already high quality.
+    // In that case, surface feedback but skip the editor pass to reduce latency.
+    const isStrongMatch = (payload.analysis.score ?? 0) > 75 && (payload.analysis.missingSkills?.length ?? 0) <= 2
+    if (!overseerResult.pass && !isStrongMatch) {
       const failCount = overseerResult.feedback.cv.length + overseerResult.feedback.coverLetter.length
       send('generate:stream', `\n[Editor] Refining ${failCount} section${failCount !== 1 ? 's' : ''}…`)
 

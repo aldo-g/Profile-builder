@@ -22,6 +22,11 @@ Extract everything you can find:
 
 Be exhaustive. Do not summarise or paraphrase — preserve specific details, dates, company names, numbers, and metrics exactly as written. Even if the input is code or unstructured, do your best to map it to the schema.
 
+For each work experience entry, be strict about the description vs achievements split:
+- description: what the role was, the team context, the product or system
+- achievements: specific things this person built, shipped, improved, or owned — each as a standalone bullet. Look for: "I built...", "I led...", "I designed...", "I reduced...", "I was responsible for...", numbers, outcomes, firsts
+Never merge achievements into the description. If in doubt, put it in achievements.
+
 Call the extract_profile tool with everything you find. If a field is not present, omit it rather than guessing.`
 
 const EXTRACT_PROFILE_TOOL: Anthropic.Tool = {
@@ -46,7 +51,16 @@ const EXTRACT_PROFILE_TOOL: Anthropic.Tool = {
         type: 'object',
         properties: {
           default: { type: 'string' },
-          variants: { type: 'array', items: { type: 'string' } }
+          variants: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string', description: 'Context label, e.g. "IC/Engineer", "Technical Lead", "General"' },
+                content: { type: 'string', description: 'The summary variant text for this context' }
+              }
+            }
+          }
         }
       },
       workExperience: {

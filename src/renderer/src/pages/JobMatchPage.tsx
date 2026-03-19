@@ -95,9 +95,25 @@ export default function JobMatchPage(): React.JSX.Element {
     updateJobSession(jobId, { analysing: true, analysis: null, cardIndex: 0, answered: [], skipped: [], answers: {} })
     try {
       const api = (window as any).api
+
+      // Collect answers from all other sessions to avoid asking the same gap questions again
+      const allSessions = useStore.getState().jobSessions
+      const previousAnswers: Record<string, string> = {}
+      for (const s of allSessions) {
+        if (s.id === jobId || !s.analysis) continue
+        const skills = s.analysis.missingSkills ?? []
+        for (const [cardIdx, answer] of Object.entries(s.answers)) {
+          const skill = skills[Number(cardIdx)]
+          if (skill && answer && !previousAnswers[skill]) {
+            previousAnswers[skill] = answer as string
+          }
+        }
+      }
+
       const result = await api.job.analyse({
         jobText: job.jobText,
-        profile: useStore.getState().profile
+        profile: useStore.getState().profile,
+        previousAnswers: Object.keys(previousAnswers).length > 0 ? previousAnswers : undefined
       })
       const analysis: GapAnalysis = result.analysis
       const autoName = [analysis.jobTitle, analysis.company].filter(Boolean).join(' · ') || 'Untitled role'
@@ -478,31 +494,63 @@ export default function JobMatchPage(): React.JSX.Element {
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Add to your profile?</p>
-                {agentMessage && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-3">{agentMessage}</p>
-                )}
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Would be saved to:</p>
-                <ul className="space-y-1.5">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Add to your profile?</p>
+                <ul className="space-y-2">
                   {Object.entries(proposedUpdates).map(([key, val]) => {
-                    const labels: Record<string, string> = {
+                    const sectionLabels: Record<string, string> = {
                       personal: 'Personal info', workExperience: 'Work experience',
                       education: 'Education', certifications: 'Certifications',
                       skills: 'Skills', portfolio: 'Portfolio',
                       languages: 'Languages', softSkills: 'Soft skills', summary: 'Summary',
                       extras: 'Extras'
                     }
-                    const count = Array.isArray(val) ? val.length
-                      : typeof val === 'object' && val !== null ? Object.keys(val as object).length
-                      : 1
+
+                    // Build a list of human-readable lines describing what will change
+                    const lines: string[] = []
+                    if (Array.isArray(val)) {
+                      for (const item of val) {
+                        if (typeof item === 'string') {
+                          lines.push(item)
+                        } else if (item && typeof item === 'object') {
+                          const o = item as Record<string, unknown>
+                          // Try common title fields in order
+                          const title = o.title ?? o.name ?? o.company ?? o.institution ?? o.language ?? o.skill ?? null
+                          const detail = o.description ?? o.content ?? o.summary ?? o.achievement ?? null
+                          if (title) lines.push(detail ? `${title}: ${String(detail).slice(0, 80)}` : String(title))
+                          else lines.push(JSON.stringify(item).slice(0, 100))
+                        }
+                      }
+                    } else if (typeof val === 'object' && val !== null) {
+                      const o = val as Record<string, unknown>
+                      for (const [k, v] of Object.entries(o)) {
+                        if (v !== undefined && v !== null && v !== '') {
+                          lines.push(`${k}: ${String(v).slice(0, 80)}`)
+                        }
+                      }
+                    } else if (val !== undefined && val !== null) {
+                      lines.push(String(val).slice(0, 120))
+                    }
+
                     return (
-                      <li key={key} className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800/60 rounded-lg px-3 py-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 dark:bg-green-400 flex-shrink-0" />
-                        <span className="text-xs text-gray-600 dark:text-gray-200 font-medium">profile.json</span>
-                        <span className="text-xs text-gray-400">→</span>
-                        <span className="text-xs text-green-600 dark:text-green-300 font-mono">{key}</span>
-                        {count > 1 && <span className="text-xs text-gray-400 ml-auto">({count} items)</span>}
-                        {count === 1 && <span className="text-xs text-gray-400 ml-auto">{labels[key] ?? key}</span>}
+                      <li key={key} className="bg-gray-50 dark:bg-gray-800/60 rounded-lg px-3 py-2.5">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 dark:bg-green-400 flex-shrink-0" />
+                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                            {sectionLabels[key] ?? key}
+                          </span>
+                        </div>
+                        {lines.length > 0 ? (
+                          <ul className="space-y-1">
+                            {lines.slice(0, 5).map((line, i) => (
+                              <li key={i} className="text-xs text-gray-700 dark:text-gray-300 leading-snug pl-3 border-l border-gray-200 dark:border-gray-700">
+                                {line}
+                              </li>
+                            ))}
+                            {lines.length > 5 && (
+                              <li className="text-xs text-gray-400 pl-3">+{lines.length - 5} more</li>
+                            )}
+                          </ul>
+                        ) : null}
                       </li>
                     )
                   })}

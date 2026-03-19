@@ -26,14 +26,17 @@ const api = {
       profile: object
     }) => ipcRenderer.invoke('chat:send', payload),
 
+    confirmUpdate: (payload: { updates: Record<string, unknown>; section: string }): Promise<Record<string, unknown>> =>
+      ipcRenderer.invoke('chat:confirmUpdate', payload),
+
     onStream: (callback: (chunk: string) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, chunk: string) => callback(chunk)
       ipcRenderer.on('chat:stream', listener)
       return () => ipcRenderer.removeListener('chat:stream', listener)
     },
 
-    onDone: (callback: (payload: { agentResponse: unknown; updatedProfile: unknown }) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload as { agentResponse: unknown; updatedProfile: unknown })
+    onDone: (callback: (payload: { agentResponse: unknown; updatedProfile: unknown; proposedUpdates?: Record<string, unknown> | null }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload as { agentResponse: unknown; updatedProfile: unknown; proposedUpdates?: Record<string, unknown> | null })
       ipcRenderer.on('chat:done', listener)
       return () => ipcRenderer.removeListener('chat:done', listener)
     },
@@ -45,7 +48,7 @@ const api = {
     }
   },
   job: {
-    analyse: (payload: { jobText: string; profile: object }) =>
+    analyse: (payload: { jobText: string; profile: object; previousAnswers?: Record<string, string> }) =>
       ipcRenderer.invoke('job:analyse', payload),
 
     chat: (payload: {
@@ -140,6 +143,8 @@ const api = {
       coverLetterTemplateText?: string
       gapAnswers?: Record<string, string>
       companySummary?: string
+      productContext?: string
+      targetPages?: number
     }) => ipcRenderer.invoke('generate:docs', payload),
 
     pdf: (payload: { markdown: string; filename: string }) =>

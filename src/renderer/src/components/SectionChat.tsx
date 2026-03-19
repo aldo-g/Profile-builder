@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useStore, WizardSection } from '../store'
 import ChatMessage, { formatAssistantContent } from './ChatMessage'
 
@@ -27,6 +27,7 @@ export default function SectionChat({ section, initialMessage }: Props): React.J
   const streamingContent = sectionStreamContent[section.id] ?? ''
 
   const [inputValue, setInputValue] = useState('')
+  const [proposedUpdates, setProposedUpdates] = useState<Record<string, unknown> | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -74,7 +75,9 @@ export default function SectionChat({ section, initialMessage }: Props): React.J
         content: payload.agentResponse.message,
         timestamp: Date.now()
       })
-      if (payload.updatedProfile) {
+      if (payload.proposedUpdates) {
+        setProposedUpdates(payload.proposedUpdates)
+      } else if (payload.updatedProfile) {
         setProfile(payload.updatedProfile)
       }
     })
@@ -126,6 +129,34 @@ export default function SectionChat({ section, initialMessage }: Props): React.J
     sendMessage(text)
   }
 
+  const handleConfirmUpdate = async () => {
+    if (!proposedUpdates) return
+    const api = (window as any).api
+    const updatedProfile = await api.chat.confirmUpdate({ updates: proposedUpdates, section: section.label })
+    setProfile(updatedProfile)
+    setProposedUpdates(null)
+  }
+
+  const handleDismissUpdate = () => {
+    setProposedUpdates(null)
+  }
+
+  // Build a flat list of skill items from proposed skills update for preview
+  const proposedSkillItems: Array<{ category: string; value: string }> = useMemo(() => {
+    if (!proposedUpdates?.skills) return []
+    const skills = proposedUpdates.skills as Record<string, unknown>
+    const items: Array<{ category: string; value: string }> = []
+    const categoryLabels: Record<string, string> = { technical: 'Technical', domains: 'Domain', tools: 'Tool' }
+    for (const [cat, vals] of Object.entries(skills)) {
+      if (Array.isArray(vals)) {
+        for (const v of vals) {
+          items.push({ category: categoryLabels[cat] ?? cat, value: String(v) })
+        }
+      }
+    }
+    return items
+  }, [proposedUpdates])
+
   return (
     <div className="flex flex-col" style={{ maxHeight: '440px' }}>
       {/* Messages */}
@@ -155,6 +186,37 @@ export default function SectionChat({ section, initialMessage }: Props): React.J
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Proposed skills preview */}
+      {proposedUpdates && proposedSkillItems.length > 0 && (
+        <div className="mx-5 mb-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 p-4 flex-shrink-0">
+          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2 uppercase tracking-wide">
+            Ready to add to your profile
+          </p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {proposedSkillItems.map((item, i) => (
+              <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700">
+                <span className="opacity-60 text-[10px]">{item.category}</span>
+                {item.value}
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleConfirmUpdate}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
+            >
+              Add to profile
+            </button>
+            <button
+              onClick={handleDismissUpdate}
+              className="px-3 py-1.5 bg-transparent hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium transition-colors border border-blue-200 dark:border-blue-700"
+            >
+              Don't add
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">

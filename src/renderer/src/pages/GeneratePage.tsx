@@ -4,12 +4,13 @@ import type { GeneratedDocs } from '../../../schema/profile.schema'
 import DocumentViewer from '../components/DocumentViewer'
 
 type GenerateStatus = 'idle' | 'pre-generate' | 'generating' | 'done' | 'error'
-type GenerationPhase = 'writing' | 'reviewing' | 'refining'
+type GenerationPhase = 'writing' | 'trimming' | 'reviewing' | 'refining'
 
 // ─── Generation pipeline config ───────────────────────────────────────────────
 
 const PIPELINE_STEPS: { phase: GenerationPhase; label: string; sublabel: string }[] = [
   { phase: 'writing',   label: 'Writing documents', sublabel: 'Tailoring CV & cover letter to the role' },
+  { phase: 'trimming',  label: 'Length check',      sublabel: 'Trimming CV to target page count' },
   { phase: 'reviewing', label: 'Quality review',    sublabel: 'Checking keyword coverage, tone & structure' },
   { phase: 'refining',  label: 'Refining',          sublabel: 'Editing flagged sections to improve score' },
 ]
@@ -38,8 +39,17 @@ function RefineIcon(): React.JSX.Element {
   )
 }
 
+function TrimIcon(): React.JSX.Element {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+    </svg>
+  )
+}
+
 const PHASE_ICONS: Record<GenerationPhase, React.JSX.Element> = {
   writing:   <WritingIcon />,
+  trimming:  <TrimIcon />,
   reviewing: <ReviewIcon />,
   refining:  <RefineIcon />,
 }
@@ -51,7 +61,7 @@ function StreamPreview({ text }: { text: string }): React.JSX.Element {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [text])
-  const cleaned = text.replace(/\[(Overseer|Editor)[^\]]*\][^\n]*/g, '').trim()
+  const cleaned = text.replace(/\[(Overseer|Editor|Trimmer)[^\]]*\][^\n]*/g, '').trim()
   const preview = cleaned.slice(-400)
   return (
     <div className="bg-gray-950 rounded-lg px-4 py-3 h-28 overflow-hidden relative font-mono text-xs text-gray-400 leading-relaxed">
@@ -64,12 +74,18 @@ function StreamPreview({ text }: { text: string }): React.JSX.Element {
 
 // ─── Generation progress panel ────────────────────────────────────────────────
 
-function GenerationProgress({ phase, streamingText, hasRefining }: {
+function GenerationProgress({ phase, streamingText, hasTrimming, hasRefining }: {
   phase: GenerationPhase
   streamingText: string
+  hasTrimming: boolean
   hasRefining: boolean
 }): React.JSX.Element {
-  const steps = hasRefining ? PIPELINE_STEPS : PIPELINE_STEPS.slice(0, 2)
+  // Always show writing + reviewing; show trimming and refining only if they actually ran
+  const steps = PIPELINE_STEPS.filter(s =>
+    s.phase === 'writing' || s.phase === 'reviewing' ||
+    (s.phase === 'trimming' && hasTrimming) ||
+    (s.phase === 'refining' && hasRefining)
+  )
   const currentIdx = steps.findIndex(s => s.phase === phase)
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-10 px-4 py-6">
@@ -156,7 +172,9 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
   const [error, setError] = useState('')
   const [streamingText, setStreamingText] = useState('')
   const [phase, setPhase] = useState<GenerationPhase>('writing')
+  const [hasTrimming, setHasTrimming] = useState(false)
   const [hasRefining, setHasRefining] = useState(false)
+  const [targetPages, setTargetPages] = useState(2)
   const [overrides, setOverrides] = useState<ApplicationOverrides | null>(null)
 
   function defaultOverrides(): ApplicationOverrides {
@@ -200,6 +218,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
     setStatus('generating')
     setStreamingText('')
     setPhase('writing')
+    setHasTrimming(false)
     setHasRefining(false)
 
     const api = (window as any).api
@@ -221,6 +240,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
 
     const removeStream = api.generate.onStream((chunk: string) => {
       setStreamingText(prev => prev + chunk)
+      if (chunk.includes('[Trimmer]')) { setPhase('trimming'); setHasTrimming(true) }
       if (chunk.includes('[Overseer]')) setPhase('reviewing')
       if (chunk.includes('[Editor]')) { setPhase('refining'); setHasRefining(true) }
     })
@@ -263,6 +283,8 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
       coverLetterTemplateText,
       gapAnswers: Object.keys(gapAnswers).length > 0 ? gapAnswers : undefined,
       companySummary: activeJob.companySummary,
+      productContext: activeJob.productContext,
+      targetPages,
       applicationOverrides: active ?? undefined
     })
   }
@@ -346,6 +368,7 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
         <GenerationProgress
           phase={phase}
           streamingText={streamingText}
+          hasTrimming={hasTrimming}
           hasRefining={hasRefining}
         />
       )}
@@ -453,6 +476,8 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
         <PreGenerateModal
           overrides={overrides}
           onChange={setOverrides}
+          targetPages={targetPages}
+          onTargetPagesChange={setTargetPages}
           onConfirm={() => handleConfirmGenerate(overrides)}
           onCancel={() => setStatus(activeJob?.generatedDocs ? 'done' : 'idle')}
         />
@@ -467,11 +492,13 @@ export default function GeneratePage({ templateStatus }: Props): React.JSX.Eleme
 interface PreGenerateModalProps {
   overrides: ApplicationOverrides
   onChange: (o: ApplicationOverrides) => void
+  targetPages: number
+  onTargetPagesChange: (n: number) => void
   onConfirm: () => void
   onCancel: () => void
 }
 
-function PreGenerateModal({ overrides, onChange, onConfirm, onCancel }: PreGenerateModalProps): React.JSX.Element {
+function PreGenerateModal({ overrides, onChange, targetPages, onTargetPagesChange, onConfirm, onCancel }: PreGenerateModalProps): React.JSX.Element {
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
@@ -503,6 +530,26 @@ function PreGenerateModal({ overrides, onChange, onConfirm, onCancel }: PreGener
               placeholder="e.g. +44 7700 000000"
               className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
             />
+          </div>
+
+          {/* Target pages */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">CV length target</label>
+            <div className="flex gap-2">
+              {[1, 2, 3].map(n => (
+                <button
+                  key={n}
+                  onClick={() => onTargetPagesChange(n)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    targetPages === n
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500'
+                  }`}
+                >
+                  {n} page{n !== 1 ? 's' : ''}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Sponsorship toggle */}

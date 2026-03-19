@@ -6,7 +6,8 @@ const RESEARCHER_SYSTEM_PROMPT = `You are a company research assistant helping a
 Your task:
 1. Use the web_search tool to research the company: find their mission, culture, tone, products/services, and any recent news from the past 12 months.
 2. Synthesise what you find into a 3–5 sentence plain-English summary that captures the company's identity, how they communicate, and what they value in employees.
-3. Call the report_company tool exactly once with your findings.
+3. Separately, identify what specific product or service the candidate would be working on — the actual thing being built, the technical challenges it involves, and any relevant engineering context. Write 1–2 sentences specifically about this as productContext.
+4. Call the report_company tool exactly once with your findings.
 
 Be factual and grounded in search results. Do not speculate. If search results are thin, say so and set confidence to "low".
 
@@ -31,6 +32,10 @@ const REPORT_COMPANY_TOOL: Anthropic.Tool = {
         type: 'string',
         enum: ['high', 'medium', 'low'],
         description: 'How confident are you in the accuracy and completeness of this summary?'
+      },
+      productContext: {
+        type: 'string',
+        description: 'One or two sentences specifically about the product or service the candidate would be working on, and the technical challenges it involves. This is distinct from the company summary — focus on what they build, not who they are.'
       }
     },
     required: ['summary', 'sources', 'confidence']

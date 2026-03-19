@@ -16,7 +16,19 @@ Additionally, infer:
 - narrativeAngle: write one sentence describing the primary argument the cover letter should make for THIS candidate against THIS job. Reference the candidate's actual strongest relevant experience. E.g. "Frame the candidate's RAG pipeline work and junior engineer mentorship at Rabobank as evidence of readiness to lead an AI-native engineering team."
 - gapSeverity: for each skill in missingSkills, classify as 'hard' (candidate has no relevant experience — genuinely absent from the profile) or 'soft' (candidate has adjacent experience that could be reframed to address this gap).
 
+Fit score rubric (0-100):
+- Start at 50
+- Add up to 20 points: required technical skills present in profile
+- Add up to 15 points: relevant domain/industry experience
+- Add up to 15 points: seniority and scope match
+- Subtract 10 points for each hard blocker (a "required" skill with zero profile coverage)
+- Subtract 5 points for each significant gap in the gaps array
+- Never exceed 95 — a perfect score is impossible without an interview
+Be conservative. A score of 60 means "worth applying." 80+ means "strong match."
+
 Call the analyse_gap tool exactly once with the structured data.
+
+{PREVIOUS_ANSWERS_SECTION}
 
 Current profile:
 {PROFILE_JSON}
@@ -129,6 +141,7 @@ const UPDATE_PROFILE_TOOL: Anthropic.Tool = {
 export interface GapAnalyserInput {
   jobText: string
   profile: Record<string, unknown>
+  previousAnswers?: Record<string, string>  // skill → answer text from other job sessions
 }
 
 export interface GapAnalyserChatInput {
@@ -148,7 +161,12 @@ export async function runGapAnalyser(
 
   const client = new Anthropic({ apiKey })
 
+  const previousAnswersSection = input.previousAnswers && Object.keys(input.previousAnswers).length > 0
+    ? `Previously answered gap questions from other applications (do not ask these again — incorporate the answers directly into the analysis as if they were profile data):\n${Object.entries(input.previousAnswers).map(([skill, answer]) => `- ${skill}: ${answer}`).join('\n')}`
+    : ''
+
   const systemPrompt = ANALYSE_SYSTEM_PROMPT
+    .replace('{PREVIOUS_ANSWERS_SECTION}', previousAnswersSection)
     .replace('{PROFILE_JSON}', JSON.stringify(input.profile, null, 2))
     .replace('{JOB_TEXT}', input.jobText)
 

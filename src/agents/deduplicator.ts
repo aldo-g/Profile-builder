@@ -135,7 +135,16 @@ const MERGE_PROFILE_TOOL: Anthropic.Tool = {
         type: 'object',
         properties: {
           default: { type: 'string' },
-          variants: { type: 'array', items: { type: 'string' } }
+          variants: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string' },
+                content: { type: 'string' }
+              }
+            }
+          }
         }
       }
     }

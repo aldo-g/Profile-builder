@@ -94,6 +94,7 @@ export interface CompanyResearch {
   summary: string
   sources: string[]
   confidence: 'high' | 'medium' | 'low'
+  productContext?: string
 }
 
 export interface GeneratedDocs {

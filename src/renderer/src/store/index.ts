@@ -18,6 +18,7 @@ export interface JobSession {
   generatedDocs: GeneratedDocs | null
   generating: boolean
   companySummary?: string
+  productContext?: string
   overseerResult?: OverseerResult
 }
 
